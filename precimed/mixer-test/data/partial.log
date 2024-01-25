@@ -1,0 +1,42 @@
+*********************************************************************
+* SIMU - library for simulation of GWAS summary statistics
+* Version v0.9.4
+* (C) 2018 Oleksandr Frei
+* Norwegian Centre for Mental Disorders Research / University of Oslo
+* GNU General Public License v3
+*********************************************************************
+Call:
+simu_linux \
+	--qt \
+	--bfile g1000_eur_hm3_maf0p05_chr21to22 \
+	--seed 123 \
+	--causal-n 10 10 10 \
+	--trait1-sigsq 1 1 0 \
+	--trait2-sigsq 1 0 1 \
+	--num-components 3 \
+	--out partial \
+	--num-traits 2 
+
+Analysis started: 2022-Nov-28 14:48:06
+WARNING: Target file partial.pheno already exists and will be overwritten
+Opening g1000_eur_hm3_maf0p05_chr21to22... done, 503 samples, 31257 variants.
+Options in effect (after applying default setting to non-specified parameters):
+	--bfile g1000_eur_hm3_maf0p05_chr21to22 \
+	--qt \
+	--num-traits 2 \
+	--hsq 0.7 0.7 \
+	--num-components 3 \
+	--causal-n 10 10 10 \
+	--trait1-sigsq 1 1 0 \
+	--trait2-sigsq 1 0 1 \
+	--rg 0 0 0 \
+	--out partial \
+	--seed 123 \
+
+Calculate allele frequencies (for causal markers only)... 
+Generate effect sizes from normal distribution...
+Calculate phenotypes... 
+Save phenotypes to partial.pheno...
+Save causal variants and their effect sizes to partial.*.causals...
+Analysis finished: 2022-Nov-28 14:48:06
+Elapsed time: 00:00:00
