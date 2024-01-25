@@ -1,0 +1,34 @@
+# remember to comment out
+# MAGMA.job     - zcat .sumstats.gz > .sumstats
+# GSA-MIXER.job -  ${MIXER_PY} split_sumstats ...
+
+module load CMake/3.15.3-GCCcore-8.3.0
+module load Boost/1.73.0-GCCcore-8.3.0
+module load Python/3.7.4-GCCcore-8.3.0
+source /cluster/projects/p697/users/ofrei/py3/bin/activate
+
+export SCRIPT=MAGMA.job
+export SCRIPT=GSA_MIXER.job
+export SCRIPT=ldak_ofrei.job
+
+sbatch $SCRIPT PGC_SCZ_0518_EUR
+sbatch $SCRIPT UKB_HEIGHT_2018_irnt
+sbatch $SCRIPT PGC_AD_2020_no23andMe
+sbatch $SCRIPT IIBDGC_CD_2017
+sbatch $SCRIPT IIBDGC_UC_2017
+sbatch $SCRIPT DIAGRAM_T2D_2018_adjBMI
+sbatch $SCRIPT CKDGEN_CKD_2019_metadata
+sbatch $SCRIPT HERMES_HeartFailure_2020
+sbatch $SCRIPT IHGC_MIG_2022
+sbatch $SCRIPT MEGASTROKE_STROKE_2022_AS
+sbatch $SCRIPT HG_COVID_HOSP_2022
+sbatch $SCRIPT GIANT_BMI_2018_UKB_v2
+sbatch $SCRIPT UKB_ALC_2017
+sbatch $SCRIPT UKB_SLEEP_2018
+sbatch $SCRIPT UKB_CHRONOTYPE_2018
+sbatch $SCRIPT MAGIC_GLYCEMIC_2021_FG_EUR
+sbatch $SCRIPT MAGIC_GLYCEMIC_2021_FI_EUR
+sbatch $SCRIPT MAGIC_GLYCEMIC_2021_HbA1c_EUR
+sbatch $SCRIPT SSGAC_EDU_2022_EUR_metadata
+sbatch $SCRIPT CTG_COG_2018
+sbatch $SCRIPT UKB_BP_2018_SBP_withICBP

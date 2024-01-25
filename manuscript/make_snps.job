@@ -1,0 +1,138 @@
+#!/bin/bash
+#SBATCH --job-name=makesnps
+#SBATCH --account=p697_tsd
+#SBATCH --time=4:00:00  
+#SBATCH --ntasks=1
+#SBATCH --mem-per-cpu=8000M  # 502 GB available => 502*1024/64 = 8032 MB max per core
+#SBATCH --cpus-per-task=4 
+#SBATCH --array 51-100
+
+source /cluster/bin/jobsetup
+#set -o errexit
+
+#module init
+
+export LDr2="0.1"
+#export LDr2="0.2"
+#export LDr2="0.6"
+
+test $SCRATCH && module load singularity/3.7.1 
+
+export PLINK2="singularity exec --home $PWD:/home /ess/p697/data/durable/s3-api/github/norment/ofrei_repo/2023_03_27/mixer.sif plink2"
+export DATAROOT="/ess/p697/cluster/users/ofrei/ukbdata/projects/plsa_mixer/ukb_genetics_qc/ukb_bed"
+export OUTDIR="/ess/p697/cluster/users/ofrei/2023_02_06_GSA_MiXeR_natgen_revisions/simu_snps"
+
+export REP=${SLURM_ARRAY_TASK_ID}
+export REFERENCE="/ess/p697/data/durable/s3-api/github/precimed/mixer_private_docker/reference"
+
+# [('base', 5), ('Coding_UCSC', 13), ('Promoter_UCSC', 59)]
+#zcat $REFERENCE/ukb_EUR_qc/baseline_v2.2_ukb_imp_chr*_v3_qc.annot.gz | awk '{if ($59 == 1) print $3 }' > ${OUTDIR}/Promoter_UCSC.snps
+#zcat $REFERENCE/ukb_EUR_qc/baseline_v2.2_ukb_imp_chr*_v3_qc.annot.gz | awk '{if ($13 == 1) print $3 }' > ${OUTDIR}/Coding_UCSC.snps
+#zcat $REFERENCE/ukb_EUR_qc/baseline_v2.2_ukb_imp_chr*_v3_qc.annot.gz | awk '{if ($5 == 1) print $3 }' > ${OUTDIR}/base.snps
+
+#for i in {1..22}; do cat $REFERENCE/ukb_EUR_qc/ukb_imp_chr${i}_v3_qc.bim; done > ukb_imp_chr@_v3_qc.bim
+#cat $REFERENCE/ukb_EUR_qc/ukb_imp_chr@_v3_qc.snps.info | tail -n+2 > ukb_imp_chr@_v3_qc_noheader.snps.info
+#paste <(cat ukb_imp_chr@_v3_qc.bim) <(cat ukb_imp_chr@_v3_qc_noheader.snps.info) | awk '{if ($9 < 50) print $2}' > ${OUTDIR}/tldBelow50.snps
+#paste <(cat ukb_imp_chr@_v3_qc.bim) <(cat ukb_imp_chr@_v3_qc_noheader.snps.info) | awk '{if ($9 < 25) print $2}' > ${OUTDIR}/tldBelow25.snps
+#paste <(cat ukb_imp_chr@_v3_qc.bim) <(cat ukb_imp_chr@_v3_qc_noheader.snps.info) | awk '{if ($9 < 10) print $2}' > ${OUTDIR}/tldBelow10.snps
+#paste <(cat ukb_imp_chr@_v3_qc.bim) <(cat ukb_imp_chr@_v3_qc_noheader.snps.info) | awk '{if ($9 < 5) print $2}' > ${OUTDIR}/tldBelow5.snps
+#paste <(cat ukb_imp_chr@_v3_qc.bim) <(cat ukb_imp_chr@_v3_qc_noheader.snps.info) | awk '{if ( ($8 < 0.1) || ($8 > 0.9) ) print $2}' > ${OUTDIR}/mafBelow10.snps
+#paste <(cat ukb_imp_chr@_v3_qc.bim) <(cat ukb_imp_chr@_v3_qc_noheader.snps.info) | awk '{if ( ($8 < 0.05) || ($8 > 0.95) ) print $2}' > ${OUTDIR}/mafBelow5.snps
+
+# =>  12926669 base.snps
+#       620884 Promoter_UCSC.snps
+#       219146 Coding_UCSC.snps
+#      1425260 tldBelow10.snps
+#      3449364 tldBelow25.snps
+#       402563 tldBelow5.snps
+#      7816338 mafBelow10.snps
+#      6512984 mafBelow5.snps
+
+# start with Coding, Promoter or base, or tldBelowNNN; shuffle and select subset; use plink to prune, then concatenate across chromosomes
+
+#  export LDr2=0.99
+#  export OUT="${OUTDIR}/base_maf=${MAF}_LDr2=${LDr2}"
+#  for i in {1..22}; do $PLINK2 --bfile ${DATAROOT}/ukb_imp_chr${i}_v3_qc_keep1k --maf $MAF --indep-pairwise 3000 1500 $LDr2 --out $OUT.tmp2.chr${i}; done
+#  cat $OUT.tmp2.chr*.prune.in > $OUT.snps
+#  rm $OUT.tmp2.chr*.prune.in $OUT.tmp2.chr*.prune.out $OUT.tmp2.chr*.log
+
+get_seeded_random()
+{
+  seed="$1"
+  openssl enc -aes-256-ctr -pass pass:"$seed" -nosalt </dev/zero 2>/dev/null
+}
+
+export MAF="0.05"
+
+# base
+export OUT="${OUTDIR}/base_maf=${MAF}_LDr2=${LDr2}_rep=${REP}"
+cat ${OUTDIR}/base.snps | shuf --random-source=<(get_seeded_random $REP) | head -n 6000000 > $OUT.tmp1.snps
+for i in {1..22}; do $PLINK2 --bfile ${DATAROOT}/ukb_imp_chr${i}_v3_qc_keep1k --maf $MAF --extract $OUT.tmp1.snps --indep-pairwise 3000 1500 $LDr2 --out $OUT.tmp2.chr${i}; done
+cat $OUT.tmp2.chr*.prune.in > $OUT.snps
+rm $OUT.tmp1.snps $OUT.tmp2.chr*.prune.in $OUT.tmp2.chr*.prune.out $OUT.tmp2.chr*.log
+
+# Coding_UCSC
+export OUT="${OUTDIR}/CodingUCSC_maf=${MAF}_LDr2=${LDr2}_rep=${REP}"
+cat ${OUTDIR}/Coding_UCSC.snps | shuf --random-source=<(get_seeded_random $REP) | head -n 100000 > $OUT.tmp1.snps
+for i in {1..22}; do $PLINK2 --bfile ${DATAROOT}/ukb_imp_chr${i}_v3_qc_keep1k --maf $MAF --extract $OUT.tmp1.snps --indep-pairwise 3000 1500 $LDr2 --out $OUT.tmp2.chr${i}; done
+cat $OUT.tmp2.chr*.prune.in > $OUT.snps
+rm $OUT.tmp1.snps $OUT.tmp2.chr*.prune.in $OUT.tmp2.chr*.prune.out $OUT.tmp2.chr*.log
+
+# Promoter_UCSC
+export OUT="${OUTDIR}/PromoterUCSC_maf=${MAF}_LDr2=${LDr2}_rep=${REP}"
+cat ${OUTDIR}/Promoter_UCSC.snps | shuf --random-source=<(get_seeded_random $REP) | head -n 300000 > $OUT.tmp1.snps
+for i in {1..22}; do $PLINK2 --bfile ${DATAROOT}/ukb_imp_chr${i}_v3_qc_keep1k --maf $MAF --extract $OUT.tmp1.snps --indep-pairwise 3000 1500 $LDr2 --out $OUT.tmp2.chr${i}; done
+cat $OUT.tmp2.chr*.prune.in > $OUT.snps
+rm $OUT.tmp1.snps $OUT.tmp2.chr*.prune.in $OUT.tmp2.chr*.prune.out $OUT.tmp2.chr*.log
+
+# tldBelow50
+export OUT="${OUTDIR}/tldBelow50_maf=${MAF}_LDr2=${LDr2}_rep=${REP}"
+cat ${OUTDIR}/tldBelow50.snps | shuf --random-source=<(get_seeded_random $REP) | head -n 2600000 > $OUT.tmp1.snps
+for i in {1..22}; do $PLINK2 --bfile ${DATAROOT}/ukb_imp_chr${i}_v3_qc_keep1k --maf $MAF --extract $OUT.tmp1.snps --indep-pairwise 3000 1500 $LDr2 --out $OUT.tmp2.chr${i}; done
+cat $OUT.tmp2.chr*.prune.in > $OUT.snps
+rm $OUT.tmp1.snps $OUT.tmp2.chr*.prune.in $OUT.tmp2.chr*.prune.out $OUT.tmp2.chr*.log
+
+# tldBelow25
+export OUT="${OUTDIR}/tldBelow25_maf=${MAF}_LDr2=${LDr2}_rep=${REP}"
+cat ${OUTDIR}/tldBelow25.snps | shuf --random-source=<(get_seeded_random $REP) | head -n 1700000 > $OUT.tmp1.snps
+for i in {1..22}; do $PLINK2 --bfile ${DATAROOT}/ukb_imp_chr${i}_v3_qc_keep1k --maf $MAF --extract $OUT.tmp1.snps --indep-pairwise 3000 1500 $LDr2 --out $OUT.tmp2.chr${i}; done
+cat $OUT.tmp2.chr*.prune.in > $OUT.snps
+rm $OUT.tmp1.snps $OUT.tmp2.chr*.prune.in $OUT.tmp2.chr*.prune.out $OUT.tmp2.chr*.log
+
+#export MAF="0.005"
+# mafBelow5
+#export OUT="${OUTDIR}/mafBelow5_maf=${MAF}_LDr2=${LDr2}_rep=${REP}"
+#cat ${OUTDIR}/mafBelow5.snps | shuf --random-source=<(get_seeded_random $REP) | head -n 3200000 > $OUT.tmp1.snps
+#for i in {1..22}; do $PLINK2 --bfile ${DATAROOT}/ukb_imp_chr${i}_v3_qc_keep1k --maf $MAF --extract $OUT.tmp1.snps --indep-pairwise 3000 1500 $LDr2 --out $OUT.tmp2.chr${i}; done
+#cat $OUT.tmp2.chr*.prune.in > $OUT.snps
+#rm $OUT.tmp1.snps $OUT.tmp2.chr*.prune.in $OUT.tmp2.chr*.prune.out $OUT.tmp2.chr*.log
+
+# mafBelow10
+export MAF="0.05"
+export OUT="${OUTDIR}/mafBelow10_maf=${MAF}_LDr2=${LDr2}_rep=${REP}"
+cat ${OUTDIR}/mafBelow10.snps | shuf --random-source=<(get_seeded_random $REP) | head -n 3900000 > $OUT.tmp1.snps
+for i in {1..22}; do $PLINK2 --bfile ${DATAROOT}/ukb_imp_chr${i}_v3_qc_keep1k --maf $MAF --extract $OUT.tmp1.snps --indep-pairwise 3000 1500 $LDr2 --out $OUT.tmp2.chr${i}; done
+cat $OUT.tmp2.chr*.prune.in > $OUT.snps
+rm $OUT.tmp1.snps $OUT.tmp2.chr*.prune.in $OUT.tmp2.chr*.prune.out $OUT.tmp2.chr*.log
+
+#export MIXER_PY="singularity exec --home $PWD:/home /ess/p697/data/durable/s3-api/github/norment/ofrei_repo/2023_03_27/mixer.sif python /tools/mixer/precimed/mixer.py"
+#export COMMON_ARGS="--bim-file ${DATAROOT}/ukb_imp_chr@_v3_qc.bim --ld-file ${DATAROOT}/ukb_imp_chr@_v3_qc.run1.ld --chr2use 1-22"
+#${MIXER_PY} snps ${COMMON_ARGS} --out ${OUTDIR}/ukb_maf=0p05_r2=0p60_rand2M_rep${REP}.snps --maf 0.05 --r2 0.6 --subset 20000000 --seed $REP
+#${MIXER_PY} snps ${COMMON_ARGS} --out ${OUTDIR}/ukb_maf=0p005_r2=0p60_rand2M_rep${REP}.snps --maf 0.005 --r2 0.6 --subset 20000000 --seed $REP
+#${MIXER_PY} snps ${COMMON_ARGS} --out ${OUTDIR}/ukb_maf=0p05_r2=0p20_rand2M_rep${REP}.snps --maf 0.05 --r2 0.2 --subset 20000000 --seed $REP
+#${MIXER_PY} snps ${COMMON_ARGS} --out ${OUTDIR}/ukb_maf=0p005_r2=0p20_rand2M_rep${REP}.snps --maf 0.005 --r2 0.2 --subset 20000000 --seed $REP
+#${MIXER_PY} snps ${COMMON_ARGS} --out ${OUTDIR}/ukb_maf=0p05_r2=0p10_rand2M_rep${REP}.snps --maf 0.05 --r2 0.1 --subset 20000000 --seed $REP
+#${MIXER_PY} snps ${COMMON_ARGS} --out ${OUTDIR}/ukb_maf=0p005_r2=0p10_rand2M_rep${REP}.snps --maf 0.005 --r2 0.1 --subset 20000000 --seed $REP
+
+
+# 6328664 SNPs in coding regions (after 10 KB up and down expansion)
+# cat /ess/p697/data/durable/s3-api/github/precimed/mixer_private_docker/reference/ukb_EUR_qc/ukb_imp_chr@_v3_qc_with_annotation.ref | awk '$10 == "1" {print $2}' >/ess/p697/cluster/users/ofrei/2023_02_06_GSA_MiXeR_natgen_revisions/simu_snps/filter_snps/base_coding_genes_10kb_up_down.snps
+
+# comm -12 <(sort base_coding_genes_10kb_up_down_maf5to95.snps) <(sort Coding_UCSC.snps) > Coding_UCSC_coding_genes_10kb_up_down_maf5to95.snps
+# comm -12 <(sort base_coding_genes_10kb_up_down_maf5to95.snps) <(sort Promoter_UCSC.snps) > Promoter_UCSC_coding_genes_10kb_up_down_maf5to95.snps
+# comm -12 <(sort base_coding_genes_10kb_up_down_maf5to95.snps) <(sort mafBelow10.snps) > mafBelow10_coding_genes_10kb_up_down_maf5to95.snps
+# comm -12 <(sort base_coding_genes_10kb_up_down_maf5to95.snps) <(sort tldBelow25.snps) > tldBelow25_coding_genes_10kb_up_down_maf5to95.snps
+# comm -12 <(sort base_coding_genes_10kb_up_down_maf5to95.snps) <(sort tldBelow50.snps) > tldBelow50_coding_genes_10kb_up_down_maf5to95.snps
+# not needed:   6512984 mafBelow5.snps and   1425260 tldBelow10.snps
+
+
