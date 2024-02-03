@@ -1,0 +1,9 @@
+This folder contains Minimum dataset for GSA-MiXeR release v1.0.0, including the following data files:
+
+* gene definitions, fetched from Entrez NCBI database
+* Gene Ontology gene-set definitions, fetched MSigDB database
+* SynGO gene-set definitions, fetched directly from SynGO database
+* Functional annotations (baselineLD_v2.2) fetched from https://alkesgroup.broadinstitute.org/LDSCORE
+* The set of M=12926669 SNPs used for analyses based on UK Biobank reference 
+* The set of M=11980511 SNPs used for analyses based on Haplotype Reference Consortia reference
+
