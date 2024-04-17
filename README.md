@@ -328,7 +328,7 @@ export SUMSTATS_FOLDER=/ess/p697/cluster/users/ofrei/ukbdata/projects/plsa_mixer
 export SUMSTATS_FILE=PGC_SCZ_0518_EUR
 #export SUMSTATS_FILE=GIANT_HEIGHT_2018_UKB
 
-${MIXER_PY} plsa split_sumstats \
+${MIXER_PY} split_sumstats \
     --trait1-file ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.sumstats.gz
     --out ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.chr@.sumstats.gz
 ```
