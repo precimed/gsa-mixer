@@ -13,7 +13,7 @@ test $SCRATCH && module load singularity/3.7.1
 export THREADS=32
 
 export SINGULARITY_BIND=
-export MIXER_SIF=/ess/p697/data/durable/s3-api/github/norment/ofrei_repo/2023_03_27/mixer.sif
+export MIXER_SIF=/ess/p697/data/durable/s3-api/github/norment/ofrei_repo/2024_01_06/mixer.sif
 md5sum ${MIXER_SIF}
 
 export MIXER_PY="singularity exec --home $PWD:/home --bind /ess/p697:/ess/p697 ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
