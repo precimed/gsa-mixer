@@ -4,6 +4,11 @@ FROM 'ubuntu:20.04'
 ENV TZ=Europe
 ENV DEBIAN_FRONTEND noninteractive
 
+LABEL org.opencontainers.image.source=https://github.com/precimed/gsa-mixer
+LABEL org.opencontainers.image.description="GSA-MiXeR"
+LABEL org.opencontainers.image.licenses=GPL-3.0
+LABEL org.opencontainers.image.authors=https://github.com/precimed/gsa-mixer/graphs/contributors
+
 # Essential tools
 WORKDIR /tmp
 COPY /scripts/apt_get_essential.sh .
