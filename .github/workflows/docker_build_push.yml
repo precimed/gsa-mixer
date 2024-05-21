@@ -53,7 +53,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           file:
             ./Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
 
   build-apptainer-container:
     needs: docker
