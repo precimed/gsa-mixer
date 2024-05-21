@@ -6,23 +6,25 @@ apt-get update && apt-get install -y --no-install-recommends ca-certificates=202
    update-ca-certificates
 
 # (!) Keep the list below sorted (!)
+# use  https://packages.ubuntu.com/ to search for package version
+# make sure to select 'Distribution: focal' for ubuntu:20.04
 apt-get update && apt-get install -y --no-install-recommends \
    autoconf=2.69-11.1 \
    automake=1:1.16.1-4ubuntu6 \
    build-essential=12.8ubuntu1 \
    bzip2=1.0.8-2 \
    cmake=3.16.3-1ubuntu1.20.04.1 \
-   curl=8.5.0-2ubuntu10.1 \
+   curl=7.68.0-1ubuntu2.22 \
    dos2unix=7.4.0-2 \
    gdb=9.1-0ubuntu1 \
    gfortran=4:9.3.0-1ubuntu2 \
    git=1:2.25.1-1ubuntu3.11 \
-   less=590-2ubuntu2.1 \
+   less=551-1ubuntu0.3 \
    libatlas-base-dev=3.10.3-8ubuntu7 \
-   libcurl4-openssl-dev=8.5.0-2ubuntu10.1 \
+   libcurl4-openssl-dev=7.68.0-1ubuntu2.22 \
    libgomp1=10.5.0-1ubuntu1~20.04 \
    libgsl-dev=2.5+dfsg-6+deb10u1build0.20.04.1 \
-   libnss3=2:3.98-1build1 \
+   libnss3=2:3.98-0ubuntu0.20.04.2 \
    libpcre2-dev=10.34-7ubuntu0.1 \
    libxt-dev=1:1.1.5-1 \
    pandoc=2.5-3build2 \
