@@ -78,6 +78,7 @@ RUN cd boost_1_69_0 && ./bootstrap.sh --with-libraries=program_options,filesyste
 WORKDIR /tools/mixer
 COPY /src /tools/mixer/src
 COPY /precimed /tools/mixer/precimed
+RUN if [ -d "/tools/mixer/src/build" ]; then rm -Rf /tools/mixer/src/build; fi
 RUN mkdir src/build && cd src/build && cmake .. -DBoost_NO_BOOST_CMAKE=ON -DBOOST_ROOT=/tools/boost_1_69_0 && make -j16 bgmg
 ENV BGMG_SHARED_LIBRARY="/tools/mixer/src/build/lib/libbgmg.so"
 
