@@ -15,7 +15,37 @@ This tutorial has the following parts:
 
 ## Install GSA-MiXeR
 
-GSA-MiXeR is available as pre-compiled singularity container which can be downloaded from [here](https://github.com/norment/ofrei_repo).
+GSA-MiXeR software is released both as a Docker container, and as a pre-compiled singularity (apptainer) container. Use the following commands to check if you have Docker and/or singulrity available in your environment:
+```
+# check if Docker software is installed
+>docker --version
+Docker version 20.10.7, build 20.10.7-0ubuntu5~21.04.2
+
+# check if singularity software is installed
+>singularity --version
+singularity version 3.7.4
+```
+
+To dowload Docker version of the GSA-MiXeR, use the following command:
+```
+docker pull ghcr.io/precimed/gsa-mixer:latest
+export MIXER_PY="sudo docker run -v ${PWD}:/home -w /home ghcr.io/precimed/gsa-mixer:latest python /tools/mixer/precimed/mixer.py"
+```
+To download singularity version of the GSA-MiXeR, use the following command:
+```
+oras pull ghcr.io/precimed/gsa-mixer_sif:latest
+export MIXER_SIF=<path>/gsa-mixer.sif
+export MIXER_PY="singularity exec --home $PWD:/home ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
+```
+The usage of ``${MIXER_PY}`` should be the same regardless of whether you use Docker or singularity version.
+The downside of using GSA-MiXeR through Docker is that this require root access (at least if you run it locally on your machine). We therefore recommend running GSA-MiXeR through a singularity container.
+
+The above containers are only generated for CPUs with x86 architecture (e.g. intel or AMD CPUs), and do not support ARM architectures (for example the are not compatible with newer Macbook laptops with M1/M2/M3 chips).
+The containers are based on the following [Dockerfile](Dockerfile), built using Github actions ([this workflow](.github/workflows/docker_build_push.yml)). We also include [scripts/from_docker_image.sh](scripts/from_docker_image.sh) shell script to convert locally built Docker container into singularity, which is only relevant if you're building these containers yourself.
+
+### Installing Docker or Singularity on your local machine
+
+To install Docker refer to its documentation: https://docs.docker.com/get-started/get-docker/ .
 
 Singularity software (https://sylabs.io/docs/) is most likely available in your HPC environment, however it's also
 not too hard to get it up an running on your laptop (especially on Ubuntu, probably also on older MAC with an intel CPU).
@@ -26,25 +56,6 @@ Note that building singularity from source code depends on [GO](https://go.dev/d
 so it must be installed first. One you have singularity up and running, it might be usefult o have a look at
 ["singularity shell" options](https://sylabs.io/guides/3.2/user-guide/cli/singularity_shell.html#options) and
 [Bind paths and mounts](https://sylabs.io/guides/3.2/user-guide/bind_paths_and_mounts.html) pages from the documentation.
-
-The ``mixer.sif`` container is based on the following [Dockerfile](Dockerfile), which is included in this repository.
-In order to do this you will also need to install Docker (e.g. [here](https://docs.docker.com/desktop/install/ubuntu/) are instructions for installing it on Ubuntu). This is not necessary if you are planning to use pre-compiled ``mixer.sif`` container.
-The only limitation with pre-compiled ``mixer.sif`` is that it only works for intel-based CPUs, and does not support
-ARM architectures such as for example newer Macbook laptops with M1 chip.
-But if you would like to build ``mixer.sif`` container from scratch, then the steps are as follows:
-
-```
-# check Docker software is installed
->docker --version
-Docker version 20.10.7, build 20.10.7-0ubuntu5~21.04.2
-
-# check singularity software is installed
->singularity --version
-singularity version 3.7.4
-
-# produce mixer.sif
->docker build -t mixer -f Dockerfile . && scripts/from_docker_image.sh mixer
-```
 
 ## Getting Started Example
 
@@ -66,11 +77,7 @@ All commands below assume that demo data is locate in your current folder.
 Expected execution time of all commands below on a standard laptop is less than 60 seconds.
 
 ```
-# point MIXER_SIF variable to the location of the mixer.sif file
-export MIXER_SIF=<ROOT>/mixer.sif
-
-# define MIXER_PY command which executes mixer.py script from within singularity container
-export MIXER_PY="singularity exec --home $PWD:/home ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
+cd precimed/mixer-test/data
 
 for chri in {21..22}; do ${MIXER_PY} ld --bfile g1000_eur_hm3_chr$chri --r2min 0.05 --ldscore-r2min 0.01 --out g1000_eur_hm3_chr$chri.ld --ld-window-kb 10000; done  
 
@@ -87,12 +94,11 @@ ${MIXER_PY} plsa --gsa-base \
 --ld-file g1000_eur_hm3_chr@.ld \
 --annot-file g1000_eur_hm3_chr@.annot.gz \
 --go-file go-file-baseline.csv \
---go-file-test go-file-geneset.csv \
 --extract g1000_eur_hm3_chr@.snps \
 --exclude-ranges chr21:20-21MB chr22:19100-19900KB \
 --chr2use 21-22 --seed 123 \
 --adam-epoch 3 3 --adam-step 0.064 0.032 \
---out plsa_baseline
+--out plsa_base
 
 # fit enrichment model, and use it to calculate heritability attributed to gene-sets in go-file-geneset.csv
 ${MIXER_PY} plsa --gsa-full \
@@ -104,11 +110,11 @@ ${MIXER_PY} plsa --gsa-full \
 --go-file go-file-gene.csv \
 --go-file-test go-file-geneset.csv \
 --extract g1000_eur_hm3_chr@.snps \
---load-params-file plsa_baseline.json \
+--load-params-file plsa_base.json \
 --exclude-ranges chr21:20-21MB chr22:19100-19900KB \
 --chr2use 21-22 --seed 123 \
 --adam-epoch 3 3 --adam-step 0.064 0.032 \
---out plsa_model
+--out plsa_full
 ```
 
 The commands above are customized to run the analysis faster.
