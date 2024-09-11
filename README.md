@@ -37,6 +37,8 @@ oras pull ghcr.io/precimed/gsa-mixer_sif:latest
 export MIXER_SIF=<path>/gsa-mixer.sif
 export MIXER_PY="singularity exec --home $PWD:/home ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
 ```
+To fetch a specific version check packages page on github ([here](https://github.com/precimed/gsa-mixer/pkgs/container/gsa-mixer) for Docker, [here](https://github.com/precimed/gsa-mixer/pkgs/container/gsa-mixer_sif) for Singularity), and update the above with a specific tag, e.g. ``gsa-mixer:sha-a7b47d3``.
+
 The usage of ``${MIXER_PY}`` should be the same regardless of whether you use Docker or singularity version.
 The downside of using GSA-MiXeR through Docker is that this require root access (at least if you run it locally on your machine). We therefore recommend running GSA-MiXeR through a singularity container.
 
@@ -86,12 +88,20 @@ ${MIXER_PY} snps --bim-file g1000_eur_hm3_chr@.bim --ld-file g1000_eur_hm3_chr@.
 # split summary statistics into one file per chromosome
 ${MIXER_PY} split_sumstats --trait1-file trait1.sumstats.gz --out trait1.chr@.sumstats.gz --chr2use 21-22
 
+# generate .bin file for --loadlib-file argument
+${MIXER_PY} plsa \
+      --bim-file g1000_eur_hm3_chr@.bim \
+      --ld-file g1000_eur_hm3_chr@.ld \
+      --use-complete-tag-indices --chr2use 21-22 --exclude-ranges [] \
+      --savelib-file g1000_eur_hm3_chr@.bin \
+      --out g1000_eur_hm3_chr@
+
 # fit baseline model, and use it to calculate heritability attributed to gene-sets in go-file-geneset.csv
 ${MIXER_PY} plsa --gsa-base \
 --trait1-file trait1.chr@.sumstats.gz \
 --use-complete-tag-indices \
 --bim-file g1000_eur_hm3_chr@.bim \
---ld-file g1000_eur_hm3_chr@.ld \
+--loadlib-file g1000_eur_hm3_chr@.bin \
 --annot-file g1000_eur_hm3_chr@.annot.gz \
 --go-file go-file-baseline.csv \
 --extract g1000_eur_hm3_chr@.snps \
@@ -105,7 +115,7 @@ ${MIXER_PY} plsa --gsa-full \
 --trait1-file trait1.chr@.sumstats.gz \
 --use-complete-tag-indices \
 --bim-file g1000_eur_hm3_chr@.bim \
---ld-file g1000_eur_hm3_chr@.ld \
+--loadlib-file g1000_eur_hm3_chr@.bin \
 --annot-file g1000_eur_hm3_chr@.annot.gz \
 --go-file go-file-gene.csv \
 --go-file-test go-file-geneset.csv \
@@ -118,10 +128,13 @@ ${MIXER_PY} plsa --gsa-full \
 ```
 
 The commands above are customized to run the analysis faster.
-For real-data analysis the commands will need the following changes:
+For real-data analysis the commands will need to be adjusted. 
+The [scripts/GSA_MIXER.job](scripts/GSA_MIXER.job) is a good starting point for real-world example of the GSA-MiXeR application. Note how ``scripts/GSA_MIXER.job`` implements the following changes:
 * remove ``--exclude-ranges chr21:20-21MB chr22:19100-19900KB``; by default ``--exclude-ranges`` will exclude MHC region
 * remove ``--chr2use 21-22``; by default ``--chr2use`` applies to all chromosomes
 * remove ``--adam-epoch 3 3 --adam-step 0.064 0.032``, as this stops Adam fit procedure too early
+* remove ``--extract g1000_eur_hm3_chr@.snps``, to use all available SNPs for fitting the model.
+The multi-start procedure involving 20 re-runs of the fit procedure, with each constrainted to a random subset of SNPs, was only relevant to cross-trait MiXeR and is not recommended for GSA-MiXeR.
 
 ## Input Data Formats
 
@@ -152,7 +165,7 @@ All reference data described below is based on EUR ancestry, and use ``hg19`` / 
 
 Reference files derived from 1kG Phase3 EUR population are available for download from [here](https://github.com/comorment/mixer/tree/main/reference/ldsc/1000G_EUR_Phase3_plink).
 
-We also have prepared similar reference files derived from [UKB](https://github.com/precimed/mixer_private_docker/tree/main/reference/ukb_EUR_qc) and [HRC](https://github.com/precimed/mixer_private_docker/tree/main/reference/hrc_EUR_qc), which we plan to release together with GSA-MiXeR tool. Functional annotations are derived from [sLDSC baselineLD_v2.2](https://storage.googleapis.com/broad-alkesgroup-public/LDSCORE/baselineLD_v2.2_bedfiles.tgz) using adapted scripts from [here](https://github.com/mkanai/eas_partitioned_ldscore) to annotate our UKB and HRC references. Note that one does not need to compute LD-scores for these annotations, because MiXeR does this internally using sparse LD matrix stored in ``--ld-file`` it receives as an argument.
+We also have prepared similar reference files derived from [UKB](https://github.com/precimed/mixer_private_docker/tree/main/reference/ukb_EUR_qc) and [HRC](https://github.com/precimed/mixer_private_docker/tree/main/reference/hrc_EUR_qc), which we plan to release together with GSA-MiXeR tool. Functional annotations are derived from [sLDSC baselineLD_v2.2](https://storage.googleapis.com/broad-alkesgroup-public/LDSCORE/baselineLD_v2.2_bedfiles.tgz) using scripts from [here](https://github.com/ofrei/eas_partitioned_ldscore) to annotate UKB, HRC and 1kG  references. Note that one does not need to compute LD-scores for these annotations, because MiXeR does this internally using sparse LD matrix stored in ``--ld-file`` it receives as an argument.
 
 ```
 ukb_EUR_qc/about_UKB_qc.txt                                 # overview of QC procedure
@@ -196,7 +209,7 @@ ${MIXER_PY} plsa \
       --out bin/1000G.EUR.QC.@
 ```
 
-The following example produces ``.bin`` file for ``fit1``,``fit2``,``test1``,``test2`` steps, yielding a single ``.bin`` file combined across all chromosomes. The ``--savelib-file`` argument does not need to include ``@`` symbol (if it does, the ``@`` symbol will stay unchanged, and simply be part of the output file name):
+The following example produces ``.bin`` file for ``fit1``,``fit2``,``test1``,``test2`` steps (cross-trait MiXeR; not relevant for GSA-MiXeR), yielding a single ``.bin`` file combined across all chromosomes. The ``--savelib-file`` argument does not need to include ``@`` symbol (if it does, the ``@`` symbol will stay unchanged, and simply be part of the output file name):
 ```
 ${MIXER_PY} fit1 \
       --bim-file ${REFERENCE_FOLDER}/hrc_EUR_qc/hrc_chr@_EUR_qc.bim \
@@ -231,6 +244,8 @@ ${MIXER_PY} ld --bfile chr${CHR} --r2min 0.01 --ldscore-r2min 0.0001 --ld-window
 ```
 
 Compute SNPs subsets (one for each of 20 random repeats), later to be used with ``--extract`` argument.
+This step is still relevant for cross-trait MiXeR, but this is not used by GSA-MiXeR.
+If you generate custom reference for GSA-MiXeR, this step can be skiped.
 ```
 #!/bin/bash
 #SBATCH --job-name=gsamixer

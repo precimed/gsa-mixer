@@ -37,7 +37,6 @@ ${MIXER_PY} plsa --gsa-base \
         --trait1-file ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.chr@.sumstats.gz \
         --out ${OUT_FOLDER}/${SUMSTATS_FILE}_base \
         --bim-file ${REFERENCE_FOLDER}/hrc_EUR_qc/hrc_chr@_EUR_qc.bim \
-        --ld-file ${REFERENCE_FOLDER}/hrc_EUR_qc/hrc_chr@_EUR_qc.run1.ld \
         --use-complete-tag-indices --loadlib-file ${LOADLIB_FILE} \
         --go-file ${REFERENCE_FOLDER}/gsa-mixer-baseline-${ANNOT_VERSION}.csv \
         --annot-file ${ANNOT_FILE} \
@@ -48,7 +47,6 @@ ${MIXER_PY} plsa --gsa-full \
         --trait1-file ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.chr@.sumstats.gz \
         --out ${OUT_FOLDER}/${SUMSTATS_FILE}_full \
         --bim-file ${REFERENCE_FOLDER}/hrc_EUR_qc/hrc_chr@_EUR_qc.bim \
-        --ld-file ${REFERENCE_FOLDER}/hrc_EUR_qc/hrc_chr@_EUR_qc.run1.ld \
         --use-complete-tag-indices --loadlib-file ${LOADLIB_FILE} \
         --go-file ${REFERENCE_FOLDER}/gsa-mixer-gene-${ANNOT_VERSION}.csv \
         --go-file-test ${REFERENCE_FOLDER}/gsa-mixer-hybridLOO-${ANNOT_VERSION}.csv \
