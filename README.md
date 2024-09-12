@@ -169,6 +169,7 @@ Reference files derived from 1kG Phase3 EUR population are available for downloa
 1000G_EUR_Phase3_plink/1000G.EUR.QC.[1-22].bim                      # ``--bim-file`` argument
 1000G_EUR_Phase3_plink/baseline_v2.2_1000G.EUR.QC.[1-22].annot.gz   # ``--annot-file`` / ``--annot-file-test`` arguments
 1000G_EUR_Phase3_plink/1000G.EUR.QC.[1-22].run4.ld                  # ``--ld-file`` argument
+1000G_EUR_Phase3_plink/1000G.EUR.QC.@.[bed/bim,fam]                 # reference for MAGMA analysis, merged across chromosomes
 ```
 
 We also have prepared similar reference files derived from [UKB](https://github.com/precimed/mixer_private_docker/tree/main/reference/ukb_EUR_qc) and [HRC](https://github.com/precimed/mixer_private_docker/tree/main/reference/hrc_EUR_qc), which we plan to release together with GSA-MiXeR tool. Functional annotations are derived from [sLDSC baselineLD_v2.2](https://storage.googleapis.com/broad-alkesgroup-public/LDSCORE/baselineLD_v2.2_bedfiles.tgz) using scripts from [here](https://github.com/ofrei/eas_partitioned_ldscore) to annotate UKB, HRC and 1kG  references. Note that one does not need to compute LD-scores for these annotations, because MiXeR does this internally using sparse LD matrix stored in ``--ld-file`` it receives as an argument.
