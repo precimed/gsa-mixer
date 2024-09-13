@@ -118,11 +118,11 @@ if __name__ == "__main__":
         sortcols(df_geneset[(df_geneset['MAGMA_P'] <  0.05/len(df_magma['FULL_NAME'].unique()))], drop_h2_cols=True, drop_mixer_sig_cols=True, sort_col='enrich'  ).to_excel(excel_writer, sheet_name='ST5', index=False)
 
         print('Output gene-sets, filtered by MiXeR AIC, ordered by enrich...')
-        sortcols(df_geneset[(df_geneset['MIXER_AIC']>-100)],
+        sortcols(df_geneset[(df_geneset['MIXER_AIC']>0)],
                 drop_h2_cols=True, drop_magma_sig_cols=True, sort_col='enrich').to_excel(excel_writer, sheet_name='ST7', index=False)
 
         print('Output gene-level results...')
-        sortcols(df_genes[(df_genes['MIXER_AIC']>-100)], 
+        sortcols(df_genes[(df_genes['MIXER_AIC']>0)], 
                 drop_magma_sig_cols=True, sort_col='MIXER_AIC').to_excel(excel_writer, sheet_name='ST9', index=False)
 
         print('Saving output file...')
