@@ -2,16 +2,16 @@
 
 GSA-MiXeR is a new technique for competitive gene-set analysis, which fits a model for gene-set heritability enrichments for complex human traits, thus allowing the quantification of partitioned heritability and fold enrichment for small gene-sets.
 
-This tutorial has the following parts:
+For a real-world application of the GSA-MiXeR you will need to perform the following steps:
+* [Install GSA-MiXeR](#install-gsa-mixer) using Docker or singularity containers
+* (optionally) test our your installation using [Getting Started Example](#getting-started-example) with tiny dummy data
+* Format your GWAS summary statistics according to [Input Data Format](#input-data-formats)
+* [Download pre-generated LD matrix and other reference files](#download-ld-matrix-and-other-reference-files) based on 1000 Genomes European population
+* [Perform GSA-MiXeR and MAGMA analyses](#perform-gsa-mixer-and-magma-analyses) using modified version of the [GSA_MIXER.job](scripts/GSA_MIXER.job) script; optionally, re-format the results using [process_gsa_mixer_output.py](scripts/process_gsa_mixer_output.py) script.
 
-* [Install GSA-MiXeR](#install-gsa-mixer) using Docker or singularity containers;
-* [Getting Started Example](#getting-started-example) using tiny dummy data
-* [Input Data Formats](#input-data-formats) for summary statistics, functional annotations and gene-set definitions
-* [Download LD Reference Files](#download-ld-reference-files) build from for 1kG, UKB or HRC genotypes
-* [(optional) Generate LD Reference](#optional-generate-ld-reference) using your own genotype panel
-* [Perform GSA-MiXeR and MAGMA analyses](#perform-gsa-mixer-and-magma-analyses) on real-world data
-* [Output formats of GSA-MiXeR analysis](#output-formats-of-gsa-mixer-analysis)
-* [Command-line reference](#command-line-reference)
+For further information on refer to [Command-line reference](#command-line-reference) section.
+We also provide instructions on how to [generate your own LD reference](#generate-ld-reference) files, for example using UKB or HRC genotypes.
+
 
 ## Install GSA-MiXeR
 
@@ -61,7 +61,9 @@ so it must be installed first. One you have singularity up and running, it might
 
 ## Getting Started Example
 
-This section depends on example data files located in ``precimed/mixer-test/data`` folder of this repository:
+This section depends on example data files located in ``precimed/mixer-test/data`` folder of this repository.
+The easiest way of downloading the example data might be to just ``git clone https://github.com/precimed/gsa-mixer.git``, to clone the entire repository. Note that for this to work properly you will need ``git lfs`` to be configured (see [here](https://git-lfs.com/)).
+The following files are needed to run the examples:
 * ```g1000_eur_hm3_chr21to22.[bed,bim,fam]``` - EUR subset of 1kG Phase3 individuals (N=503) for M=34958 SNPs from chr21 and chr22, already constrained to HapMap3 SNPs
 *  ```g1000_eur_hm3_chr[21,22].ld``` - LD matrix derived from the above genotypes using ``mixer.py ld`` command
 * ```g1000_eur_hm3_chr@.snps``` - SNPs used to subset GWAS z-scores used in fit procedure; the set of SNPs is derived from the above genotypes with ``mixer.py snps`` command
@@ -159,11 +161,20 @@ Prior to running GSA-MiXeR we advice filtering SNPs with bad imputation quality,
 If per-SNP sample size is available, we advice filtering out SNPs with N below half of the median sample size across SNPs.
 Other filtering options are built into GSA-MiXeR software, including ``--exclude-ranges`` option to filter out special regions such as MHC, and ``--maf`` and ``--randprune-maf`` to filter out based on minor allele frequency.
 
-## Download LD Reference Files
+Prior to running GSA-MiXeR you will need to split summary statistics into one file per chromosome, as shown in [GSA_MIXER.job](scripts/GSA_MIXER.job):
+```
+${MIXER_PY} split_sumstats \
+    --trait1-file ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.sumstats.gz
+    --out ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.chr@.sumstats.gz
+```
+
+## Download LD matrix and other reference files
 
 All reference data described below is based on EUR ancestry, and use ``hg19`` / ``GRCh37`` genomic build.
 
 Reference files derived from 1kG Phase3 EUR population are available for download from [here](https://github.com/comorment/mixer/tree/main/reference/ldsc/1000G_EUR_Phase3_plink).
+The easiest way of downloading the example data might be to just ``git clone https://github.com/comorment/mixer.git``, to clone the entire [comorment/mixer](https://github.com/comorment/mixer) repository. Note that for this to work properly you will need ``git lfs`` to be configured (see [here](https://git-lfs.com/)).
+The following files are needed:
 
 ```
 1000G_EUR_Phase3_plink/1000G.EUR.QC.[1-22].bim                      # ``--bim-file`` argument
@@ -172,24 +183,10 @@ Reference files derived from 1kG Phase3 EUR population are available for downloa
 1000G_EUR_Phase3_plink/1000G.EUR.QC.@.[bed/bim,fam]                 # reference for MAGMA analysis, merged across chromosomes
 ```
 
-We also have prepared similar reference files derived from [UKB](https://github.com/precimed/mixer_private_docker/tree/main/reference/ukb_EUR_qc) and [HRC](https://github.com/precimed/mixer_private_docker/tree/main/reference/hrc_EUR_qc), which we plan to release together with GSA-MiXeR tool. Functional annotations are derived from [sLDSC baselineLD_v2.2](https://storage.googleapis.com/broad-alkesgroup-public/LDSCORE/baselineLD_v2.2_bedfiles.tgz) using scripts from [here](https://github.com/ofrei/eas_partitioned_ldscore) to annotate UKB, HRC and 1kG  references. Note that one does not need to compute LD-scores for these annotations, because MiXeR does this internally using sparse LD matrix stored in ``--ld-file`` it receives as an argument.
+Functional annotations are derived from [sLDSC baselineLD_v2.2](https://storage.googleapis.com/broad-alkesgroup-public/LDSCORE/baselineLD_v2.2_bedfiles.tgz) using scripts from [here](https://github.com/ofrei/eas_partitioned_ldscore) to annotate UKB, HRC and 1kG  references. Note that one does not need to compute LD-scores for these annotations, because MiXeR does this internally using sparse LD matrix stored in ``--ld-file`` it receives as an argument.
 
-```
-ukb_EUR_qc/about_UKB_qc.txt                                 # overview of QC procedure
-ukb_EUR_qc/ukb_imp_chr[1-22]_v3_qc.bim                      # ``--bim-file`` argument
-ukb_EUR_qc/baseline_v2.2_ukb_imp_chr[1-22]_v3_qc.annot.gz   # ``--annot-file`` / ``--annot-file-test`` arguments
-ukb_EUR_qc/ukb_imp_chr[1-22]_v3_qc.run1.ld                  # ``--ld-file`` argument
-ukb_EUR_qc/ukb_imp_chr@_qc.prune_rand2M_rep[1-20].snps      # ``--extract`` argument
 
-hrc_EUR_qc/about_HRC_qc.txt                                 # overview of QC procedure
-hrc_EUR_qc/hrc_chr[1-22]_EUR_qc.bim                         # ``--bim-file`` argument
-hrc_EUR_qc/hrc_chr[1-22]_EUR_qc.run1.ld                     # ``--annot-file`` / ``--annot-file-test`` arguments
-hrc_EUR_qc/baseline_v2.2_hrc_chr[1-22]_EUR_qc.annot.gz      # ``--ld-file`` argument
-hrc_EUR_qc/hrc_EUR_qc.prune_rand2M_rep[1-20].snps           # ``--extract`` argument
-```
-
-Additionally, [here](https://github.com/precimed/mixer_private_docker/tree/main/reference/) one may download there are gene and gene-set definitions, derived as explained [here](https://github.com/ofrei/genesets/blob/main/prepare_genesets_v2.ipynb):
-
+Additionally you need to download gene- and gene-set definitions from [here](https://github.com/precimed/gsa-mixer/tree/main/reference/) (for future reference, these definitions are derived using scripts from [here](https://github.com/ofrei/genesets/blob/main/prepare_genesets_v2.ipynb) ):
 ```
 gsa-mixer-baseline-annot_10mar2023.csv           # ``--go-file`` (baseline model)
 gsa-mixer-gene-annot_10mar2023.csv               # ``--go-file`` (model)
@@ -201,7 +198,7 @@ magma-gene-annot_10mar2023.csv                   # gsa-mixer-gene-annot_10mar202
 magma-geneset-annot_10mar2023.csv                # gsa-mixer-geneset-annot_10mar2023.csv converted to MAGMA format
 ```
 
-After downloading reference file we advice using ``--savelib-file`` option as shown below to generate ``.bin`` files,
+After downloading LD reference files we advice using ``--savelib-file`` option as shown below to generate ``.bin`` files,
 with compressed representation of the reference. After that loading reference is possible with ``--loadlib-file``, providing considerable speedup over passing ``--ld-file`` argument.
 
 The reference needs to be saved in two formats. The following example produces ``.bin`` files for ``plsa`` analysis, yielding its own ``.bin`` file for each chromosome. The ``--savelib-file`` argument must include ``@`` symbol which will be replaced with an actual chromosome label.
@@ -225,273 +222,107 @@ ${MIXER_PY} fit1 \
       --out 1000G_EUR_Phase3_plink/1000G.EUR.QC.@
 ```
 
-## (optional) Generate LD Reference
-
-For real-data analysis reference data can usually be downloaded via the links provided above.
-Otherwise GSA-MiXeR reference files can be prepared from plink bfile using ``mixer.py ld`` and ``mixer.py snps`` commands as described below. It's important that the reference genotypes contain unrelated individuals only, constrained to a single population.
-Note that ``@`` symbol must remain as it is in all commands, i.e. you don't need to exchange it with a specific chromosome label.
-
-Compute LD matrices (one per chromosome), later to be used with ``--ld-file`` argument.
-```
-#!/bin/bash
-#SBATCH --job-name=gsamixer
-#SBATCH --account=p697
-#SBATCH --time=48:00:00
-#SBATCH --ntasks=1
-#SBATCH --mem-per-cpu=8000M
-#SBATCH --cpus-per-task=8
-#SBATCH --array=1-22
-
-export CHR=${SLURM_ARRAY_TASK_ID}
-export MIXER_SIF=mixer.sif
-export MIXER_PY="singularity exec --home pwd:/home ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
-
-${MIXER_PY} ld --bfile chr${CHR} --r2min 0.01 --ldscore-r2min 0.0001 --ld-window-kb 10000 --out chr${CHR}.ld
-```
-
-Compute SNPs subsets (one for each of 20 random repeats), later to be used with ``--extract`` argument.
-This step is still relevant for cross-trait MiXeR, but this is not used by GSA-MiXeR.
-If you generate custom reference for GSA-MiXeR, this step can be skiped.
-```
-#!/bin/bash
-#SBATCH --job-name=gsamixer
-#SBATCH --account=p697
-#SBATCH --time=2:00:00
-#SBATCH --ntasks=1
-#SBATCH --mem-per-cpu=8000M
-#SBATCH --cpus-per-task=8
-#SBATCH --array=1-20
-
-export REP=${SLURM_ARRAY_TASK_ID}
-export MIXER_SIF=mixer.sif
-export MIXER_PY="singularity exec --home pwd:/home ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
-
-${MIXER_PY} snps --bim-file chr${CHR} --ld-file chr@ --chr2use 1-22 --maf 0.05 --subset 3000000 --seed $REP --out rep${REP}.snps
-```
-
-If only a random subset of SNPs is needed it's faster to use linux's ``cut`` and ``shuf`` commands:
-```
-for i in {1..20}
-do 
-  cat hrc_chr*_EUR_qc.bim | cut -f 2 | shuf | head -n 2000000 | sort > hrc_EUR_qc.prune_rand2M_rep$i.snps
-done
-```
-
-Full command-line reference for ``mixer.py ld`` and ``mixer.py snps`` is as follows:
-```
-usage: mixer.py ld [-h] [--out OUT] [--lib LIB] [--log LOG] [--bfile BFILE]
-                   [--r2min R2MIN] [--ldscore-r2min LDSCORE_R2MIN]
-                   [--ld-window-kb LD_WINDOW_KB] [--ld-window LD_WINDOW]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --out OUT             prefix for the output files, such as <out>.json
-                        (default: mixer);
-  --lib LIB             path to libbgmg.so plugin (default: libbgmg.so); can
-                        be also specified via BGMG_SHARED_LIBRARY env
-                        variable.
-  --log LOG             file to output log (default: <out>.log); NB! if --log
-                        points to an existing file the new lines will be
-                        appended to it at the end of the file.
-  --bfile BFILE         path to plink bfile (required argument)
-  --r2min R2MIN         r2 values above this threshold will be stored in
-                        sparse LD format (default: 0.05)
-  --ldscore-r2min LDSCORE_R2MIN
-                        r2 values above this threshold (and below --r2min)
-                        will be stored as LD scores that contribute to the
-                        cost function via an infinitesimal model (default:
-                        0.001)
-  --ld-window-kb LD_WINDOW_KB
-                        limit window similar to --ld-window-kb in 'plink r2';
-                        0 will disable this constraint (default: 0); either
-                        ld-window-kb or ld-window argument must be provided
-  --ld-window LD_WINDOW
-                        limit window similar to --ld-window in 'plink r2'; 0
-                        will disable this constraint (default: 0); either ld-
-                        window-kb or ld-window argument must be provided
-```
-
-```
-usage: mixer.py snps [-h] [--out OUT] [--lib LIB] [--log LOG]
-                     [--bim-file BIM_FILE] [--ld-file LD_FILE]
-                     [--chr2use CHR2USE] [--r2 R2] [--maf MAF]
-                     [--subset SUBSET] [--seed SEED]
-
-optional arguments:
-  -h, --help           show this help message and exit
-  --out OUT            prefix for the output files, such as <out>.json
-                       (default: mixer);
-  --lib LIB            path to libbgmg.so plugin (default: libbgmg.so); can be
-                       also specified via BGMG_SHARED_LIBRARY env variable.
-  --log LOG            file to output log (default: <out>.log); NB! if --log
-                       points to an existing file the new lines will be
-                       appended to it at the end of the file.
-  --bim-file BIM_FILE  plink bim file (required argument); defines the
-                       reference set of SNPs used for the analysis. Marker
-                       names must not have duplicated entries. May contain
-                       symbol '@', which will be replaced by an actual
-                       chromosome label.
-  --ld-file LD_FILE    file with linkage disequilibrium information, generated
-                       via 'mixer.py ld' command (required argument); may
-                       contain symbol '@', similarly to --bim-file argument.
-  --chr2use CHR2USE    chromosome labels to use (default: 1-22); chromosome
-                       must be labeled by integer, i.e. X and Y are not
-                       acceptable; example of valid arguments: '1,2,3' or
-                       '1-4,12,16-20'
-  --r2 R2              LD r2 threshold for prunning SNPs (default: 0.8)
-  --maf MAF            minor allele frequence (MAF) threshold (default: 0.05)
-  --subset SUBSET      number of SNPs to randomly select (default: 2000000)
-  --seed SEED          random seed (default: None)
-```
-
 ## Perform GSA-MiXeR and MAGMA analyses
 
-First step is to split summary statistics into one file per chromosome, as follows:
+[scripts/GSA_MIXER.job](scripts/GSA_MIXER.job) script is a good starting point for performing GSA-MiXeR and MAGMA analyses. Below is an overview of its key sections.
 
+### Define SLURM parameters
+
+GSA-MiXeR analysis takes around 6 to 12 hours using 8-core machine, and utilize around 30 GB of RAM. The following configuration might be a good starting point:
 ```
-export MIXER_SIF=/ess/p697/data/durable/s3-api/github/norment/ofrei_repo/2023_03_27/mixer.sif
-export MIXER_PY="singularity exec --home pwd:/home --bind /ess/p697:/ess/p697 ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
-export SUMSTATS_FOLDER=/ess/p697/cluster/users/ofrei/ukbdata/projects/plsa_mixer/sumstats
-export SUMSTATS_FILE=PGC_SCZ_0518_EUR
-#export SUMSTATS_FILE=GIANT_HEIGHT_2018_UKB
-
-${MIXER_PY} split_sumstats \
-    --trait1-file ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.sumstats.gz
-    --out ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.chr@.sumstats.gz
-```
-
-Then following two SLURM scripts will apply GSA-MiXeR and MAGMA analysis.
-Commands below use reference data described in [Download LD Reference Files](#download-ld-reference-files) section.
-MAGMA software is also included in ``mixer.sif`` container.
-
-[scripts/GSA_MIXER.job](scripts/GSA_MIXER.job):
-```
-#!/bin/bash
-#SBATCH --job-name=plsasimu
-#SBATCH --account=p697_norment
-#SBATCH --time=24:00:00
+#SBATCH --job-name=gsamixer
+#SBATCH --time=12:00:00
 #SBATCH --ntasks=1
-#SBATCH --mem-per-cpu=8000M  # 502 GB available => 502*1024/64 = 8032 MB max per core
-#SBATCH --cpus-per-task=8    # remember to update --threads argument below!
-#SBATCH --array=1-20
-##SBATCH --array=1
-
-source /cluster/bin/jobsetup
-
-test $SCRATCH && module load singularity/3.7.1 
-
-export SINGULARITY_BIND=
-export MIXER_SIF=/ess/p697/data/durable/s3-api/github/norment/ofrei_repo/2023_03_27/mixer.sif
-md5sum ${MIXER_SIF}  # b99f7b027b0448d9338f9506bac09c66
-
-export MIXER_PY="singularity exec --home pwd:/home --bind /ess/p697:/ess/p697 ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
-
-export SUMSTATS_FOLDER=/ess/p697/cluster/users/ofrei/ukbdata/projects/plsa_mixer/sumstats
-
-export SUMSTATS_FILE=PGC_SCZ_0518_EUR
-#export SUMSTATS_FILE=GIANT_HEIGHT_2018_UKB
-
-export OUT_FOLDER=/ess/p697/cluster/users/ofrei/ukbdata/projects/plsa_mixer/real_jan22_main_run1
-export REFERENCE_FOLDER=/ess/p697/data/durable/s3-api/github/precimed/mixer_private_docker/reference
-export REP=${SLURM_ARRAY_TASK_ID}
-
-# just to test if commands run, add the following:
-# --chr2use 21-22 --adam-epoch 3 3 --adam-step 0.064 0.032
-
-# baseline
-${MIXER_PY} plsa \
-        --trait1-file ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.chr@.sumstats.gz \
-        --out ${OUT_FOLDER}/${SUMSTATS_FILE}_baseline_rep${REP} \
-        --bim-file ${REFERENCE_FOLDER}/hrc_EUR_qc/hrc_chr@_EUR_qc.bim \
-        --ld-file ${REFERENCE_FOLDER}/hrc_EUR_qc/hrc_chr@_EUR_qc.run1.ld \
-        --extract ${REFERENCE_FOLDER}/hrc_EUR_qc/hrc_EUR_qc.prune_rand2M_rep${REP}.snps \
-        --go-file ${REFERENCE_FOLDER}/gsa-mixer-baseline-annot_27jan2022.csv \
-        --go-file-test ${REFERENCE_FOLDER}/gsa-mixer-hybridLOO-annot_27jan2022.csv \
-        --annot-file ${REFERENCE_FOLDER}/hrc_EUR_qc/baseline_v2.2_hrc_chr@_EUR_qc.annot.gz \
-        --annot-file-test ${REFERENCE_FOLDER}/hrc_EUR_qc/baseline_v2.2_hrc_chr@_EUR_qc.annot.gz \
-        --z1max 9.336 --sig2-zeroL 0 --s-value -0.25 --pi-value 1.0 --l-init -0.25 \
-        --seed $((REP+1000)) --threads 8
-
-# enrichment model
-${MIXER_PY} plsa \
-        --trait1-file ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.chr@.sumstats.gz \
-        --out ${OUT_FOLDER}/${SUMSTATS_FILE}_model_rep${REP} \
-        --bim-file ${REFERENCE_FOLDER}/hrc_EUR_qc/hrc_chr@_EUR_qc.bim \
-        --ld-file ${REFERENCE_FOLDER}/hrc_EUR_qc/hrc_chr@_EUR_qc.run1.ld \
-        --extract ${REFERENCE_FOLDER}/hrc_EUR_qc/hrc_EUR_qc.prune_rand2M_rep${REP}.snps \
-        --go-file ${REFERENCE_FOLDER}/gsa-mixer-gene-annot_27jan2022.csv \
-        --go-file-test ${REFERENCE_FOLDER}/gsa-mixer-hybridLOO-annot_27jan2022.csv \
-        --annot-file-test ${REFERENCE_FOLDER}/hrc_EUR_qc/baseline_v2.2_hrc_chr@_EUR_qc.annot.gz \
-        --z1max 9.336 --sig2-zeroL 0 --s-value -0.25 --pi-value 1.0 --l-init -0.25 \
-        --seed $((REP+1000)) --threads 8
+#SBATCH --account=nn9114k
+#SBATCH --mem-per-cpu=4569M   # 178.5 GB / 40 cores - https://documentation.sigma2.no/jobs/job_types/saga_job_types.html
+#SBATCH --cpus-per-task=8     # if you change keep --threads $THREADS argument in sync
 ```
 
-[scripts/MAGMA.job](scripts/MAGMA.job):
+### Define data location, and singularity-related variables
 ```
-#!/bin/bash
-#SBATCH --job-name=magma
-#SBATCH --account=p697_norment
-#SBATCH --time=24:00:00
-#SBATCH --ntasks=1
-#SBATCH --mem-per-cpu=8000M  # 502 GB available => 502*1024/64 = 8032 MB max per core
-#SBATCH --cpus-per-task=4
-
-source /cluster/bin/jobsetup
-
-test $SCRATCH && module load singularity/3.7.1 
-
-export SINGULARITY_BIND=
-export MIXER_SIF=/ess/p697/data/durable/s3-api/github/norment/ofrei_repo/2023_03_27/mixer.sif
-md5sum ${MIXER_SIF}  # b99f7b027b0448d9338f9506bac09c66
-
-export MAGMA="singularity exec --home pwd:/home --bind /ess/p697:/ess/p697 ${MIXER_SIF} magma"
-
-export SUMSTATS_FOLDER=/ess/p697/cluster/users/ofrei/ukbdata/projects/plsa_mixer/sumstats
-
+export GITHUB=/cluster/projects/nn9114k/github
+export MIXER_SIF=${GITHUB}/precimed/gsa-mixer/containers/singularity/gsa-mixer.sif
+export SUMSTATS_FOLDER=/cluster/projects/nn9114k/oleksanf/gsa-mixer/sumstats
 export SUMSTATS_FILE=PGC_SCZ_0518_EUR
-#export SUMSTATS_FILE=GIANT_HEIGHT_2018_UKB
+export OUT_FOLDER=/cluster/projects/nn9114k/oleksanf/gsa-mixer/out2
+export BIND="--bind /cluster/projects/nn9114k:/cluster/projects/nn9114k"
 
-export OUT_FOLDER=/ess/p697/cluster/users/ofrei/ukbdata/projects/plsa_mixer/real_jan22_magma_run1
+export REFERENCE_FOLDER=${GITHUB}/precimed/gsa-mixer/reference
+export BIM_FILE=${GITHUB}/comorment/mixer/reference/ldsc/1000G_EUR_Phase3_plink/1000G.EUR.QC.@.bim
+export LOADLIB_FILE=${GITHUB}/comorment/mixer/reference/ldsc/1000G_EUR_Phase3_plink/1000G.EUR.QC.@.bin
+export ANNOT_FILE=${GITHUB}/comorment/mixer/reference/ldsc/1000G_EUR_Phase3_plink/baseline_v2.2_1000G.EUR.QC.@.annot.gz
 
-export REFERENCE_FOLDER=/ess/p697/data/durable/s3-api/github/precimed/mixer_private_docker/reference
-export MAGMA_BFILE=/ess/p697/cluster/projects/moba_qc_imputation/resources/HRC/plink/hrc_EUR_qc_keep1k
-export MAGMA_GENE_LOC=${REFERENCE_FOLDER}/magma-gene-annot_27jan2022.csv
-export MAGMA_SET_ANNOT=${REFERENCE_FOLDER}/magma-geneset-annot_27jan2022.csv
-export OUT=${OUT_FOLDER}/${SUMSTATS_FILE}
+export MAGMA_BFILE=${GITHUB}/comorment/mixer/reference/ldsc/1000G_EUR_Phase3_plink/1000G.EUR.QC.@
+export MAGMA_GENE_LOC=${GITHUB}/precimed/gsa-mixer/reference/magma-gene-annot_10mar2023.csv
+export MAGMA_SET_ANNOT=${GITHUB}/precimed/gsa-mixer/reference/magma-geneset-annot_10mar2023.csv
 
-zcat  ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.sumstats.gz >  ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.sumstats
+export PYTHON="singularity exec --home pwd:/home $BIND ${MIXER_SIF} python"
+export MIXER_PY="$PYTHON /tools/mixer/precimed/mixer.py"
+export MAGMA="singularity exec --home pwd:/home $BIND ${MIXER_SIF} magma"
+```
 
+### Perform GSA-MIXER analysis
+
+Define a few configuration options shared between baseline and full models:
+```
+export EXTRA_FLAGS="--seed 1000 --exclude-ranges MHC --hardprune-r2 0.6 --threads 8 "
+```
+
+Baseline model:
+```
+${MIXER_PY} plsa --gsa-base \
+        --trait1-file ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.chr@.sumstats.gz \
+        --out ${OUT_FOLDER}/${SUMSTATS_FILE}_base \
+        --bim-file ${BIM_FILE} --use-complete-tag-indices --loadlib-file ${LOADLIB_FILE} \
+        --go-file ${REFERENCE_FOLDER}/gsa-mixer-baseline-annot_10mar2023.csv \
+        --annot-file ${ANNOT_FILE} \
+        ${EXTRA_FLAGS}
+```
+
+Enrichment model:
+```
+${MIXER_PY} plsa --gsa-full \
+        --trait1-file ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.chr@.sumstats.gz \
+        --out ${OUT_FOLDER}/${SUMSTATS_FILE}_full \
+        --bim-file ${BIM_FILE} --use-complete-tag-indices --loadlib-file ${LOADLIB_FILE} \
+        --go-file ${REFERENCE_FOLDER}/gsa-mixer-gene-annot_10mar2023.csv \
+        --go-file-test ${REFERENCE_FOLDER}/gsa-mixer-hybridLOO-annot_10mar2023.csv \
+        --annot-file ${ANNOT_FILE} \
+        --load-params-file ${OUT_FOLDER}/${SUMSTATS_FILE}_base.json \
+        ${EXTRA_FLAGS}
+```
+
+### Perform MAGMA analysis:
+
+```
+# MAGMA analysis - annotate snps to genes
 $MAGMA --snp-loc ${MAGMA_BFILE}.bim \
        --gene-loc ${MAGMA_GENE_LOC} \
-       --out $OUT.magma.step1 \
-       --annotate window=10 
-$MAGMA --pval ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.sumstats snp-id=SNP pval=PVAL ncol=N \
+       --out ${OUT_FOLDER}/${SUMSTATS_FILE}_magma.step1 \
+       --annotate window=10
+
+# MAGMA analysis - compute gene-level p-values
+$MAGMA --pval ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.sumstats snp-id=RSID pval=P ncol=N \
        --bfile ${MAGMA_BFILE} \
-       --gene-annot $OUT.magma.step1.genes.annot \
-       --out $OUT.magma.step2
-$MAGMA --gene-results $OUT.magma.step2.genes.raw \
+       --gene-annot ${OUT_FOLDER}/${SUMSTATS_FILE}_magma.step1.genes.annot \
+       --out ${OUT_FOLDER}/${SUMSTATS_FILE}_magma.step2
+
+# MAGMA analysis - compute geneset-level p-values
+$MAGMA --gene-results ${OUT_FOLDER}/${SUMSTATS_FILE}_magma.step2.genes.raw \
        --set-annot ${MAGMA_SET_ANNOT} \
-       --out $OUT.magma
+       --out ${OUT_FOLDER}/${SUMSTATS_FILE}_magma
 ```
 
-## Output formats of GSA-MiXeR analysis
+### Re-format the results
 
-The above scripts produce the following output files:
+[process_gsa_mixer_output.py](scripts/process_gsa_mixer_output.py) script can be used to re-format the results,
+assuming that GSA-MiXeR and MAGMA outputs are stored in ``${OUT_FOLDER}/${SUMSTATS_FILE}_magma`` and ``${OUT_FOLDER}/${SUMSTATS_FILE}_magma`` folders, respectively.
+We include a few sample files in this repository allowing to test out the [scripts/process_gsa_mixer_output.py](scripts/process_gsa_mixer_output.py) script.
+After editing the script so that it points to the input files you can run it as follows:
 
 ```
-PGC_SCZ_0518_EUR_baseline_rep[1-20].go_test_enrich.csv
-PGC_SCZ_0518_EUR_model_rep[1-20].go_test_enrich.csv
-```
-
-Final step of the analysis is to compute ratios between ``model`` and ``baseline``
-using [scripts/gsa_mixer_combine.py](scripts/gsa_mixer_combine.py) (not integrated into .sif container).
-Later this will be available as follows:
-```
-export SUMSTATS_FILE=PGC_SCZ_0518_EUR
-export MIXER_FIGURES_PY="singularity exec --home pwd:/home ${MIXER_SIF} python /tools/mixer/precimed/mixer_figures.py"
-MIXER_FIGURES_PY combine --go-file-out-baseline ${SUMSTATS_FILE}_baseline_rep@.go_test_enrich.csv \
-                         --go-file-out-model ${SUMSTATS_FILE}_model_rep@.go_test_enrich.csv \
-                         --out ${SUMSTATS_FILE}.go_test_enrich.csv
+export PYTHON="singularity exec --home pwd:/home $BIND ${MIXER_SIF} python"
+$PYTHON process_gsa_mixer_output.py
 ```
 
 ## Command-line reference
@@ -664,4 +495,143 @@ optional arguments:
                         expected to be from a 'mixer.py plsa' run
   --make-snps-file      a flag allowing to generate file with per-SNP
                         estimates; will generate <out>.snps.csv output file
+```
+
+## Generate LD Reference
+
+Analyses in the original publication are based on UKB and HRC reference panen, partly shared here:
+* [UKB reference](https://github.com/precimed/gas-mixer/tree/main/reference/ukb_EUR_qc) and 
+* [HRC reference](https://github.com/precimed/gsa-mixer/tree/main/reference/hrc_EUR_qc).
+
+These references require the following files:
+```
+ukb_EUR_qc/about_UKB_qc.txt                                 # overview of QC procedure
+ukb_EUR_qc/ukb_imp_chr[1-22]_v3_qc.bim                      # ``--bim-file`` argument
+ukb_EUR_qc/baseline_v2.2_ukb_imp_chr[1-22]_v3_qc.annot.gz   # ``--annot-file`` / ``--annot-file-test`` arguments
+ukb_EUR_qc/ukb_imp_chr[1-22]_v3_qc.run1.ld                  # ``--ld-file`` argument (files not shared)
+ukb_EUR_qc/ukb_imp_chr@_qc.prune_rand2M_rep[1-20].snps      # ``--extract`` argument
+
+hrc_EUR_qc/about_HRC_qc.txt                                 # overview of QC procedure
+hrc_EUR_qc/hrc_chr[1-22]_EUR_qc.bim                         # ``--bim-file`` argument
+hrc_EUR_qc/hrc_chr[1-22]_EUR_qc.run1.ld                     # ``--annot-file`` / ``--annot-file-test`` arguments
+hrc_EUR_qc/baseline_v2.2_hrc_chr[1-22]_EUR_qc.annot.gz      # ``--ld-file`` argument (files not shared)
+hrc_EUR_qc/hrc_EUR_qc.prune_rand2M_rep[1-20].snps           # ``--extract`` argument
+```
+All files are shared except for the full LD matrix, which is not shared due to concerns of de-identifying the subjects.
+To re-generate LD matrices you will need to obtain access to individual-level data of UKB or HRC subjects, and re-run analysis as defined in ``about_UKB_qc.txt`` / ``about_HRC_qc.txt`` steps.
+
+GSA-MiXeR reference files can be prepared from plink bfile using ``mixer.py ld`` and ``mixer.py snps`` commands as described below. It's important that the reference genotypes contain unrelated individuals only, constrained to a single population.
+Note that ``@`` symbol must remain as it is in all commands, i.e. you don't need to exchange it with a specific chromosome label.
+
+Compute LD matrices (one per chromosome), later to be used with ``--ld-file`` argument.
+```
+#!/bin/bash
+#SBATCH --job-name=gsamixer
+#SBATCH --account=p697
+#SBATCH --time=48:00:00
+#SBATCH --ntasks=1
+#SBATCH --mem-per-cpu=8000M
+#SBATCH --cpus-per-task=8
+#SBATCH --array=1-22
+
+export CHR=${SLURM_ARRAY_TASK_ID}
+export MIXER_SIF=mixer.sif
+export MIXER_PY="singularity exec --home pwd:/home ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
+
+${MIXER_PY} ld --bfile chr${CHR} --r2min 0.01 --ldscore-r2min 0.0001 --ld-window-kb 10000 --out chr${CHR}.ld
+```
+
+Compute SNPs subsets (one for each of 20 random repeats), later to be used with ``--extract`` argument.
+This step is still relevant for cross-trait MiXeR, but this is not used by GSA-MiXeR.
+If you generate custom reference for GSA-MiXeR, this step can be skiped.
+```
+#!/bin/bash
+#SBATCH --job-name=gsamixer
+#SBATCH --account=p697
+#SBATCH --time=2:00:00
+#SBATCH --ntasks=1
+#SBATCH --mem-per-cpu=8000M
+#SBATCH --cpus-per-task=8
+#SBATCH --array=1-20
+
+export REP=${SLURM_ARRAY_TASK_ID}
+export MIXER_SIF=mixer.sif
+export MIXER_PY="singularity exec --home pwd:/home ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
+
+${MIXER_PY} snps --bim-file chr${CHR} --ld-file chr@ --chr2use 1-22 --maf 0.05 --subset 3000000 --seed $REP --out rep${REP}.snps
+```
+
+If only a random subset of SNPs is needed it's faster to use linux's ``cut`` and ``shuf`` commands:
+```
+for i in {1..20}
+do 
+  cat hrc_chr*_EUR_qc.bim | cut -f 2 | shuf | head -n 2000000 | sort > hrc_EUR_qc.prune_rand2M_rep$i.snps
+done
+```
+
+Full command-line reference for ``mixer.py ld`` and ``mixer.py snps`` is as follows:
+```
+usage: mixer.py ld [-h] [--out OUT] [--lib LIB] [--log LOG] [--bfile BFILE]
+                   [--r2min R2MIN] [--ldscore-r2min LDSCORE_R2MIN]
+                   [--ld-window-kb LD_WINDOW_KB] [--ld-window LD_WINDOW]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --out OUT             prefix for the output files, such as <out>.json
+                        (default: mixer);
+  --lib LIB             path to libbgmg.so plugin (default: libbgmg.so); can
+                        be also specified via BGMG_SHARED_LIBRARY env
+                        variable.
+  --log LOG             file to output log (default: <out>.log); NB! if --log
+                        points to an existing file the new lines will be
+                        appended to it at the end of the file.
+  --bfile BFILE         path to plink bfile (required argument)
+  --r2min R2MIN         r2 values above this threshold will be stored in
+                        sparse LD format (default: 0.05)
+  --ldscore-r2min LDSCORE_R2MIN
+                        r2 values above this threshold (and below --r2min)
+                        will be stored as LD scores that contribute to the
+                        cost function via an infinitesimal model (default:
+                        0.001)
+  --ld-window-kb LD_WINDOW_KB
+                        limit window similar to --ld-window-kb in 'plink r2';
+                        0 will disable this constraint (default: 0); either
+                        ld-window-kb or ld-window argument must be provided
+  --ld-window LD_WINDOW
+                        limit window similar to --ld-window in 'plink r2'; 0
+                        will disable this constraint (default: 0); either ld-
+                        window-kb or ld-window argument must be provided
+```
+
+```
+usage: mixer.py snps [-h] [--out OUT] [--lib LIB] [--log LOG]
+                     [--bim-file BIM_FILE] [--ld-file LD_FILE]
+                     [--chr2use CHR2USE] [--r2 R2] [--maf MAF]
+                     [--subset SUBSET] [--seed SEED]
+
+optional arguments:
+  -h, --help           show this help message and exit
+  --out OUT            prefix for the output files, such as <out>.json
+                       (default: mixer);
+  --lib LIB            path to libbgmg.so plugin (default: libbgmg.so); can be
+                       also specified via BGMG_SHARED_LIBRARY env variable.
+  --log LOG            file to output log (default: <out>.log); NB! if --log
+                       points to an existing file the new lines will be
+                       appended to it at the end of the file.
+  --bim-file BIM_FILE  plink bim file (required argument); defines the
+                       reference set of SNPs used for the analysis. Marker
+                       names must not have duplicated entries. May contain
+                       symbol '@', which will be replaced by an actual
+                       chromosome label.
+  --ld-file LD_FILE    file with linkage disequilibrium information, generated
+                       via 'mixer.py ld' command (required argument); may
+                       contain symbol '@', similarly to --bim-file argument.
+  --chr2use CHR2USE    chromosome labels to use (default: 1-22); chromosome
+                       must be labeled by integer, i.e. X and Y are not
+                       acceptable; example of valid arguments: '1,2,3' or
+                       '1-4,12,16-20'
+  --r2 R2              LD r2 threshold for prunning SNPs (default: 0.8)
+  --maf MAF            minor allele frequence (MAF) threshold (default: 0.05)
+  --subset SUBSET      number of SNPs to randomly select (default: 2000000)
+  --seed SEED          random seed (default: None)
 ```
