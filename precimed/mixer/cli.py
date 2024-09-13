@@ -1428,7 +1428,7 @@ def compute_geneset_enrichment(go_file_test, args, exclude_ranges, libbgmg_vec, 
     total_h2_base = gene_h2_base.flat[idx_all_genes]
     gene_enrich  = np.divide(np.divide(gene_h2[0, :], total_h2), np.divide(gene_h2_base, total_h2_base))
     gene_enrich_std  = np.divide(np.divide(np.std(gene_h2[1:, :], axis=0), total_h2), np.divide(gene_h2_base, total_h2_base))
-    df_enrich = pd.DataFrame({'h2':gene_h2[0, :].flat, 'h2_std':np.std(gene_h2[1:, :], axis=0),  'h2_base':gene_h2_base.flat, 'enrich':gene_enrich.flat, 'enrich_std':gene_enrich_std, 'snps':gene_snps.flat, 'GO':genenames, 'loglike_diff':loglike_diff.flat})
+    df_enrich = pd.DataFrame({'h2':gene_h2[0, :].flat, 'se_h2':np.std(gene_h2[1:, :], axis=0),  'h2_base':gene_h2_base.flat, 'enrich':gene_enrich.flat, 'se_enrich':gene_enrich_std, 'snps':gene_snps.flat, 'GO':genenames, 'loglike_diff':loglike_diff.flat})
     df_enrich = pd.merge(df_enrich, pd.read_csv(go_file_test, sep='\t')[['GO','GENE']].groupby('GO').count().reset_index(), on='GO', how='left').rename(columns={'GENE':'NGENES'})
     return df_enrich
 

@@ -17,7 +17,7 @@ def sortcols(df, drop_h2_cols=False, drop_magma_sig_cols=False, drop_mixer_sig_c
         df_sorted['MAGMA_RANK'] = df_sorted.index + 1
         df = df_sorted.copy()
 
-    cols = ['GO', 'GENE', 'NGENES', 'enrich', 'std_enrich','LDSC_enrich', 'MIXER_AIC', 'loglike_diff', 'std_loglike_diff', 'loglike_df', 'MIXER_P', 'MIXER_Q', 'MIXER_FDR', 'MAGMA_P', 'MAGMA_RANK',  'h2', 'std_h2', 'h2_frac',  'std_h2_frac',  'h2_base_frac', 'std_h2_base_frac', 'LDSC_h2_frac', 'LDAK_h2', 'LDAK_std_h2', 'LDAK_LRT_P_Perm', 'excl_GENE', 'excl_enrich', 'std_excl_enrich', 'GENE_LIST']
+    cols = ['GO', 'GENE', 'NGENES', 'enrich', 'se_enrich', 'MIXER_AIC', 'loglike_diff', 'loglike_df', 'MIXER_P', 'MIXER_Q', 'MIXER_FDR', 'MAGMA_P', 'MAGMA_RANK',  'h2', 'se_h2', 'h2_frac',  'se_h2_frac',  'h2_base_frac', 'se_h2_base_frac', 'excl_GENE', 'excl_enrich', 'se_excl_enrich', 'GENE_LIST']
     df_sorted = df[[c for c in cols if c in df.columns] + [c for c in df.columns if c not in cols]].copy()
     
     if sort_col is not None:
@@ -25,13 +25,13 @@ def sortcols(df, drop_h2_cols=False, drop_magma_sig_cols=False, drop_mixer_sig_c
         df_sorted.sort_values(['sort_key'], inplace=True)
 
     for c in df_sorted.columns:
-        if c in 'h2 std_h2 h2_frac std_h2_frac h2_base_frac std_h2_base_frac LDSC_h2_frac LDAK_h2 LDAK_std_h2'.split():
+        if c in 'h2 se_h2 h2_frac se_h2_frac h2_base_frac se_h2_base_frac'.split():
             df_sorted[c] = [('' if pd.isnull(x) else ('{:,.6f}'.format(x))) for x in df_sorted[c].values]
-        if c in 'MIXER_AIC loglike_diff std_loglike_diff'.split():
+        if c in 'MIXER_AIC loglike_diff'.split():
             df_sorted[c] = [('' if pd.isnull(x) else ('{:,.2f}'.format(x))) for x in df_sorted[c].values]
-        if c in 'enrich std_enrich LDSC_enrich excl_enrich std_excl_enrich'.split():
+        if c in 'enrich se_enrich excl_enrich se_excl_enrich'.split():
             df_sorted[c] = [('' if pd.isnull(x) else ('{:,.2f}'.format(x))) for x in df_sorted[c].values]
-        if c in 'MAGMA_P LDAK_LRT_P_Perm MIXER_P MIXER_Q MIXER_FDR'.split():
+        if c in 'MAGMA_P MIXER_P MIXER_Q MIXER_FDR'.split():
             df_sorted[c] = [('' if pd.isnull(x) else ('{:,.2e}'.format(x))) for x in df_sorted[c].values]
         if c in ['NGENES']:
             df_sorted[c] = [('' if pd.isnull(x) else int(x)) for x in df_sorted[c].values]
@@ -41,7 +41,6 @@ def sortcols(df, drop_h2_cols=False, drop_magma_sig_cols=False, drop_mixer_sig_c
     if drop_magma_sig_cols and ('MAGMA_P' in df_sorted):
         del df_sorted['MAGMA_P']
         
-    if 'std_loglike_diff' in df_sorted.columns: del df_sorted['std_loglike_diff']
     if drop_mixer_sig_cols:
         del df_sorted['MIXER_AIC']
         del df_sorted['loglike_diff']
@@ -49,7 +48,7 @@ def sortcols(df, drop_h2_cols=False, drop_magma_sig_cols=False, drop_mixer_sig_c
     
     if drop_h2_cols:
         del df_sorted['h2']
-        del df_sorted['std_h2']
+        del df_sorted['se_h2']
     
     df_sorted=df_sorted.reset_index(drop=True)
     return df_sorted
@@ -61,19 +60,20 @@ if __name__ == "__main__":
 
     print('Reading GSA-MiXeR output...')
     df = pd.read_csv(f'{out_prefix}_full.go_test_enrich.csv',sep='\t')
+    if 'enrich_std' in df.columns: df.rename(columns={'enrich_std':'se_enrich'}, inplace=True)
+    if 'h2_std' in df.columns: df.rename(columns={'h2_std':'se_h2'}, inplace=True)
+
     geneset_pruned = pd.read_csv(prunedoverlap_fname, sep='\t') if (prunedoverlap_fname is not None) else []
 
     h2_coding_full = df[df['GO']=='coding_genes']['h2'].iloc[0]
     h2_coding_base = df[df['GO']=='coding_genes']['h2_base'].iloc[0]
 
     df['h2_frac'] = df['h2'] / h2_coding_full
+    df['se_h2_frac'] = df['se_h2'] / h2_coding_full
     df['h2_base_frac'] = df['h2_base'] / h2_coding_base
-
-    df['std_h2'] = df['h2_std']
-    df['std_h2_frac'] = df['h2_std'] / h2_coding_full
-    df['std_enrich'] = df['enrich_std']
-
-    df['MIXER_AIC'] = -2*df['loglike_df'] + 2*df['loglike_diff']
+    df.rename(columns={'loglike_aic':'MIXER_AIC'}, inplace=True)
+    del df['h2_base']
+    del df['snps']
 
     print('Organize output tables...')
     idx_base_coding = df['GO'].isin(['base', 'coding_genes'])
@@ -89,12 +89,12 @@ if __name__ == "__main__":
     df_mixer_geneset_main = df[idx_geneset_pruned].copy()
 
     df_mixer_geneset_logo = df[idx_geneset_logo & ~df['enrich'].isnull()].copy()
-    df_mixer_geneset_logo.rename(columns={'enrich':'excl_enrich', 'std_enrich':'std_excl_enrich'}, inplace=True)
+    df_mixer_geneset_logo.rename(columns={'enrich':'excl_enrich', 'se_enrich':'se_excl_enrich'}, inplace=True)
     df_mixer_geneset_logo['excl_GENE'] = [x.split('_excl_')[1] for x in df_mixer_geneset_logo['GO']]
     df_mixer_geneset_logo['GO'] = [x.split('_excl_')[0] for x in df_mixer_geneset_logo['GO']]
     df_mixer_geneset_logo.reset_index(drop=True, inplace=True)
-    df_mixer_geneset_logo = df_mixer_geneset_logo.loc[df_mixer_geneset_logo[['GO', 'excl_enrich', 'std_excl_enrich']].groupby(['GO'])['excl_enrich'].idxmin()]
-    df_mixer_geneset_main = pd.merge(df_mixer_geneset_main, df_mixer_geneset_logo[['GO', 'excl_GENE', 'excl_enrich', 'std_excl_enrich']], on=['GO'], how='left')
+    df_mixer_geneset_logo = df_mixer_geneset_logo.loc[df_mixer_geneset_logo[['GO', 'excl_enrich', 'se_excl_enrich']].groupby(['GO'])['excl_enrich'].idxmin()]
+    df_mixer_geneset_main = pd.merge(df_mixer_geneset_main, df_mixer_geneset_logo[['GO', 'excl_GENE', 'excl_enrich', 'se_excl_enrich']], on=['GO'], how='left')
 
     df_geneset = pd.merge(df_mixer_geneset_main,
                         df_magma.rename(columns={'FULL_NAME': 'GO', 'P':'MAGMA_P'})[['GO', 'MAGMA_P']],
@@ -115,15 +115,15 @@ if __name__ == "__main__":
 
     with pd.ExcelWriter(f"{out_prefix}_SupplementaryTables.xlsx") as excel_writer:
         print('Output gene-sets, filtered by magma, re-ordered by MiXeR...')
-        sortcols(df_geneset[(df_geneset['MAGMA_P'] <  0.05/len(df_magma['FULL_NAME'].unique()))], drop_h2_cols=True, drop_mixer_sig_cols=True, sort_col='enrich'  ).to_excel(excel_writer, sheet_name='ST3', index=False)
+        sortcols(df_geneset[(df_geneset['MAGMA_P'] <  0.05/len(df_magma['FULL_NAME'].unique()))], drop_h2_cols=True, drop_mixer_sig_cols=True, sort_col='enrich'  ).to_excel(excel_writer, sheet_name='ST5', index=False)
 
         print('Output gene-sets, filtered by MiXeR AIC, ordered by enrich...')
-        sortcols(df_geneset[(df_geneset['MIXER_AIC']>0)],
-                drop_h2_cols=True, drop_magma_sig_cols=True, sort_col='enrich').to_excel(excel_writer, sheet_name='ST5', index=False)
+        sortcols(df_geneset[(df_geneset['MIXER_AIC']>-100)],
+                drop_h2_cols=True, drop_magma_sig_cols=True, sort_col='enrich').to_excel(excel_writer, sheet_name='ST7', index=False)
 
         print('Output gene-level results...')
-        sortcols(df_genes[(df_genes['MIXER_AIC']>0)], 
-                drop_magma_sig_cols=True, sort_col='MIXER_AIC').to_excel(excel_writer, sheet_name='ST7', index=False)
+        sortcols(df_genes[(df_genes['MIXER_AIC']>-100)], 
+                drop_magma_sig_cols=True, sort_col='MIXER_AIC').to_excel(excel_writer, sheet_name='ST9', index=False)
 
         print('Saving output file...')
 
