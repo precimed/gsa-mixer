@@ -2,6 +2,12 @@ import pandas as pd
 import numpy as np
 
 out_prefix = '/home/oleksanf/github/precimed/gsa-mixer/out/PGC_SCZ_0518_EUR'
+#out_prefix = '/cluster/projects/nn9114k/oleksanf/gsa-mixer/out2/PGC_SCZ_0518_EUR'
+
+# an optional path to gene-sets to be excluded from the results
+# a better option is to just filter them from the file passed to --go-file-test in the GSA-MiXeR enrichment model
+prunedoverlap_fname = None
+#prunedoverlap_fname = '/home/oleksanf/github/precimed/gsa-mixer/reference/gsa-mixer-geneset-annot_10mar2023_prunedoverlap0p8.txt'
 
 def sortcols(df, drop_h2_cols=False, drop_magma_sig_cols=False, drop_mixer_sig_cols=False, sort_col='enrich'):
 
@@ -55,6 +61,7 @@ if __name__ == "__main__":
 
     print('Reading GSA-MiXeR output...')
     df = pd.read_csv(f'{out_prefix}_full.go_test_enrich.csv',sep='\t')
+    geneset_pruned = pd.read_csv(prunedoverlap_fname, sep='\t') if (prunedoverlap_fname is not None) else []
 
     h2_coding_full = df[df['GO']=='coding_genes']['h2'].iloc[0]
     h2_coding_base = df[df['GO']=='coding_genes']['h2_base'].iloc[0]
@@ -67,13 +74,6 @@ if __name__ == "__main__":
     df['std_enrich'] = df['enrich_std']
 
     df['MIXER_AIC'] = -2*df['loglike_df'] + 2*df['loglike_diff']
-
-    print('Reading gene-set definitions...')
-    prunedoverlap_fname = '/home/oleksanf/github/precimed/gsa-mixer/reference/gsa-mixer-geneset-annot_10mar2023_prunedoverlap0p8.txt'
-    geneset_pruned = pd.read_csv(prunedoverlap_fname, sep='\t')
-    g2g=pd.read_csv('/home/oleksanf/github/precimed/gsa-mixer/reference/gsa-mixer-geneset-annot_10mar2023.csv',sep='\t')
-    g2g=g2g[['GO', 'GENE']].drop_duplicates()
-    df_ngenes = g2g.groupby('GO').count().reset_index().rename(columns={'GENE':'NGENES', 'GO':'geneset'})
 
     print('Organize output tables...')
     idx_base_coding = df['GO'].isin(['base', 'coding_genes'])
@@ -99,10 +99,11 @@ if __name__ == "__main__":
     df_geneset = pd.merge(df_mixer_geneset_main,
                         df_magma.rename(columns={'FULL_NAME': 'GO', 'P':'MAGMA_P'})[['GO', 'MAGMA_P']],
                         how='left', on=('GO'))
+
+    g2g=pd.DataFrame([x.split('_excl_') for x in df[df['GO'].str.contains('_excl_')]['GO']], columns=['GO', 'GENE'])                        
     df_geneset = pd.merge(df_geneset,
-                        pd.merge(df_ngenes[df_ngenes['NGENES']<=25].rename(columns={'geneset':'GO'})[['GO']],
-                                g2g.groupby('GO')['GENE'].apply(lambda x:' '.join(sorted(x))).reset_index(), on='GO').rename(columns={'GENE':'GENE_LIST'}),
-                        on='GO', how='left')
+                          g2g.groupby('GO')['GENE'].apply(lambda x:' '.join(sorted(x))).reset_index().rename(columns={'GENE':'GENE_LIST'}),
+                          on='GO', how='left')
 
     df_genes = df_mixer_genes.copy()
     df_genes = pd.merge(df_genes,
@@ -117,11 +118,11 @@ if __name__ == "__main__":
         sortcols(df_geneset[(df_geneset['MAGMA_P'] <  0.05/len(df_magma['FULL_NAME'].unique()))], drop_h2_cols=True, drop_mixer_sig_cols=True, sort_col='enrich'  ).to_excel(excel_writer, sheet_name='ST3', index=False)
 
         print('Output gene-sets, filtered by MiXeR AIC, ordered by enrich...')
-        sortcols(df_geneset[(df_geneset['MIXER_AIC']>-100)],
+        sortcols(df_geneset[(df_geneset['MIXER_AIC']>0)],
                 drop_h2_cols=True, drop_magma_sig_cols=True, sort_col='enrich').to_excel(excel_writer, sheet_name='ST5', index=False)
 
         print('Output gene-level results...')
-        sortcols(df_genes[(df_genes['MIXER_AIC']>-100)], 
+        sortcols(df_genes[(df_genes['MIXER_AIC']>0)], 
                 drop_magma_sig_cols=True, sort_col='MIXER_AIC').to_excel(excel_writer, sheet_name='ST7', index=False)
 
         print('Saving output file...')
