@@ -29,13 +29,13 @@ singularity version 3.7.4
 To dowload Docker version of the GSA-MiXeR, use the following command:
 ```
 docker pull ghcr.io/precimed/gsa-mixer:latest
-export MIXER_PY="sudo docker run -v ${PWD}:/home -w /home ghcr.io/precimed/gsa-mixer:latest python /tools/mixer/precimed/mixer.py"
+export MIXER_PY="sudo docker run -v pwd:/home -w /home ghcr.io/precimed/gsa-mixer:latest python /tools/mixer/precimed/mixer.py"
 ```
 To download singularity version of the GSA-MiXeR, use the following command:
 ```
 oras pull ghcr.io/precimed/gsa-mixer_sif:latest
 export MIXER_SIF=<path>/gsa-mixer.sif
-export MIXER_PY="singularity exec --home $PWD:/home ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
+export MIXER_PY="singularity exec --home pwd:/home ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
 ```
 To fetch a specific version check packages page on github ([here](https://github.com/precimed/gsa-mixer/pkgs/container/gsa-mixer) for Docker, [here](https://github.com/precimed/gsa-mixer/pkgs/container/gsa-mixer_sif) for Singularity), and update the above with a specific tag, e.g. ``gsa-mixer:sha-a7b47d3``.
 
@@ -244,7 +244,7 @@ Compute LD matrices (one per chromosome), later to be used with ``--ld-file`` ar
 
 export CHR=${SLURM_ARRAY_TASK_ID}
 export MIXER_SIF=mixer.sif
-export MIXER_PY="singularity exec --home $PWD:/home ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
+export MIXER_PY="singularity exec --home pwd:/home ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
 
 ${MIXER_PY} ld --bfile chr${CHR} --r2min 0.01 --ldscore-r2min 0.0001 --ld-window-kb 10000 --out chr${CHR}.ld
 ```
@@ -264,7 +264,7 @@ If you generate custom reference for GSA-MiXeR, this step can be skiped.
 
 export REP=${SLURM_ARRAY_TASK_ID}
 export MIXER_SIF=mixer.sif
-export MIXER_PY="singularity exec --home $PWD:/home ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
+export MIXER_PY="singularity exec --home pwd:/home ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
 
 ${MIXER_PY} snps --bim-file chr${CHR} --ld-file chr@ --chr2use 1-22 --maf 0.05 --subset 3000000 --seed $REP --out rep${REP}.snps
 ```
@@ -350,7 +350,7 @@ First step is to split summary statistics into one file per chromosome, as follo
 
 ```
 export MIXER_SIF=/ess/p697/data/durable/s3-api/github/norment/ofrei_repo/2023_03_27/mixer.sif
-export MIXER_PY="singularity exec --home $PWD:/home --bind /ess/p697:/ess/p697 ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
+export MIXER_PY="singularity exec --home pwd:/home --bind /ess/p697:/ess/p697 ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
 export SUMSTATS_FOLDER=/ess/p697/cluster/users/ofrei/ukbdata/projects/plsa_mixer/sumstats
 export SUMSTATS_FILE=PGC_SCZ_0518_EUR
 #export SUMSTATS_FILE=GIANT_HEIGHT_2018_UKB
@@ -384,7 +384,7 @@ export SINGULARITY_BIND=
 export MIXER_SIF=/ess/p697/data/durable/s3-api/github/norment/ofrei_repo/2023_03_27/mixer.sif
 md5sum ${MIXER_SIF}  # b99f7b027b0448d9338f9506bac09c66
 
-export MIXER_PY="singularity exec --home $PWD:/home --bind /ess/p697:/ess/p697 ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
+export MIXER_PY="singularity exec --home pwd:/home --bind /ess/p697:/ess/p697 ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
 
 export SUMSTATS_FOLDER=/ess/p697/cluster/users/ofrei/ukbdata/projects/plsa_mixer/sumstats
 
@@ -444,7 +444,7 @@ export SINGULARITY_BIND=
 export MIXER_SIF=/ess/p697/data/durable/s3-api/github/norment/ofrei_repo/2023_03_27/mixer.sif
 md5sum ${MIXER_SIF}  # b99f7b027b0448d9338f9506bac09c66
 
-export MAGMA="singularity exec --home $PWD:/home --bind /ess/p697:/ess/p697 ${MIXER_SIF} magma"
+export MAGMA="singularity exec --home pwd:/home --bind /ess/p697:/ess/p697 ${MIXER_SIF} magma"
 
 export SUMSTATS_FOLDER=/ess/p697/cluster/users/ofrei/ukbdata/projects/plsa_mixer/sumstats
 
@@ -488,7 +488,7 @@ using [scripts/gsa_mixer_combine.py](scripts/gsa_mixer_combine.py) (not integrat
 Later this will be available as follows:
 ```
 export SUMSTATS_FILE=PGC_SCZ_0518_EUR
-export MIXER_FIGURES_PY="singularity exec --home $PWD:/home ${MIXER_SIF} python /tools/mixer/precimed/mixer_figures.py"
+export MIXER_FIGURES_PY="singularity exec --home pwd:/home ${MIXER_SIF} python /tools/mixer/precimed/mixer_figures.py"
 MIXER_FIGURES_PY combine --go-file-out-baseline ${SUMSTATS_FILE}_baseline_rep@.go_test_enrich.csv \
                          --go-file-out-model ${SUMSTATS_FILE}_model_rep@.go_test_enrich.csv \
                          --out ${SUMSTATS_FILE}.go_test_enrich.csv

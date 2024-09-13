@@ -45,9 +45,9 @@ export DO_MIXER=true
 export DO_MAGMA=true
 
 # standard GSA-MiXeR pipeline begins here - change only if you know what you're doing
-export PYTHON="singularity exec --home $PWD:/home $BIND ${MIXER_SIF} python"
+export PYTHON="singularity exec --home pwd:/home $BIND ${MIXER_SIF} python"
 export MIXER_PY="$PYTHON /tools/mixer/precimed/mixer.py"
-export MAGMA="singularity exec --home $PWD:/home $BIND ${MIXER_SIF} magma"
+export MAGMA="singularity exec --home pwd:/home $BIND ${MIXER_SIF} magma"
 
 export MAGMA_BFILE=${GITHUB}/comorment/mixer/reference/ldsc/1000G_EUR_Phase3_plink/1000G.EUR.QC.@
 export MAGMA_GENE_LOC=${GITHUB}/precimed/gsa-mixer/reference/magma-gene-annot_10mar2023.csv
