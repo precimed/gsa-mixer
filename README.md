@@ -9,7 +9,7 @@ For a real-world application of the GSA-MiXeR you will need to perform the follo
 * [Download pre-generated LD matrix and other reference files](#download-ld-matrix-and-other-reference-files) based on 1000 Genomes European population
 * [Perform GSA-MiXeR and MAGMA analyses](#perform-gsa-mixer-and-magma-analyses) using modified version of the [GSA_MIXER.job](scripts/GSA_MIXER.job) script; optionally, re-format the results using [process_gsa_mixer_output.py](scripts/process_gsa_mixer_output.py) script.
 
-For further information on refer to [Command-line reference](#command-line-reference) section.
+For further information refer to [Command-line reference](#command-line-reference) section.
 We also provide instructions on how to [generate your own LD reference](#generate-ld-reference) files, for example using UKB or HRC genotypes.
 
 
@@ -131,7 +131,7 @@ ${MIXER_PY} plsa --gsa-full \
 
 The commands above are customized to run the analysis faster.
 For real-data analysis the commands will need to be adjusted. 
-The [scripts/GSA_MIXER.job](scripts/GSA_MIXER.job) is a good starting point for real-world example of the GSA-MiXeR application. Note how ``scripts/GSA_MIXER.job`` implements the following changes:
+The [scripts/GSA_MIXER.job](scripts/GSA_MIXER.job) is a good starting point for real-world example of the GSA-MiXeR application; note how this script implements the following changes, as compared to the above commands from the getting started example:
 * remove ``--exclude-ranges chr21:20-21MB chr22:19100-19900KB``; by default ``--exclude-ranges`` will exclude MHC region
 * remove ``--chr2use 21-22``; by default ``--chr2use`` applies to all chromosomes
 * remove ``--adam-epoch 3 3 --adam-step 0.064 0.032``, as this stops Adam fit procedure too early
@@ -267,6 +267,7 @@ Define a few configuration options shared between baseline and full models:
 ```
 export EXTRA_FLAGS="--seed 1000 --exclude-ranges MHC --hardprune-r2 0.6 --threads 8 "
 ```
+It's recommended to update the ``--threads`` argument so that it is in sync with SLURM's ``--cpus-per-task``.
 
 Baseline model:
 ```
@@ -292,6 +293,9 @@ ${MIXER_PY} plsa --gsa-full \
         ${EXTRA_FLAGS}
 ```
 
+Key output file is ``${OUT_FOLDER}/${SUMSTATS_FILE}_full.go_test_enrich.csv``.
+You may check ``out_example`` folder for a pre-generated example of such file.
+
 ### Perform MAGMA analysis:
 
 ```
@@ -313,17 +317,22 @@ $MAGMA --gene-results ${OUT_FOLDER}/${SUMSTATS_FILE}_magma.step2.genes.raw \
        --out ${OUT_FOLDER}/${SUMSTATS_FILE}_magma
 ```
 
+Key output files are
+``${OUT_FOLDER}/${SUMSTATS_FILE}_magma.step2.genes.out`` and ``${OUT_FOLDER}/${SUMSTATS_FILE}_magma.gsa.out``.
+You may check ``out_example`` folder for a pre-generated example of such files.
+
 ### Re-format the results
 
 [process_gsa_mixer_output.py](scripts/process_gsa_mixer_output.py) script can be used to re-format the results,
-assuming that GSA-MiXeR and MAGMA outputs are stored in ``${OUT_FOLDER}/${SUMSTATS_FILE}_magma`` and ``${OUT_FOLDER}/${SUMSTATS_FILE}_magma`` folders, respectively.
+assuming that GSA-MiXeR and MAGMA outputs are stored with ``${OUT_FOLDER}/${SUMSTATS_FILE}_full`` and ``${OUT_FOLDER}/${SUMSTATS_FILE}_magma`` prefixes, respectively.
 We include a few sample files in this repository allowing to test out the [scripts/process_gsa_mixer_output.py](scripts/process_gsa_mixer_output.py) script.
-After editing the script so that it points to the input files you can run it as follows:
-
+You will need to make a trivial changes to the script, pointing it to the location of the input files.
+To run the script you may use python installation from MiXeR's docker or singularity container, as it includes all required dependencies:
 ```
 export PYTHON="singularity exec --home pwd:/home $BIND ${MIXER_SIF} python"
 $PYTHON process_gsa_mixer_output.py
 ```
+This yields ``SupplementaryTables.xlsx`` file, with columns named as in respective supplementary tables from the GSA-MiXeR's publication.
 
 ## Command-line reference
 
