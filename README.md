@@ -12,6 +12,7 @@ For a real-world application of the GSA-MiXeR you will need to perform the follo
 For further information refer to [Command-line reference](#command-line-reference) section.
 We also provide instructions on how to [generate your own LD reference](#generate-ld-reference) files, for example using UKB or HRC genotypes.
 
+Please cite [our publication](https://www.nature.com/articles/s41588-024-01771-1) if you use GSA-MiXeR software in your research work.
 
 ## Install GSA-MiXeR
 
@@ -29,7 +30,8 @@ singularity version 3.7.4
 To dowload Docker version of the GSA-MiXeR, use the following command:
 ```
 docker pull ghcr.io/precimed/gsa-mixer:latest
-export MIXER_PY="sudo docker run -v pwd:/home -w /home ghcr.io/precimed/gsa-mixer:latest python /tools/mixer/precimed/mixer.py"
+export DOCKER_RUN="sudo docker run --user $(id -u):$(id -g) -v $PWD:/home -w /home"
+export MIXER_PY="$DOCKER_RUN ghcr.io/precimed/gsa-mixer:latest python /tools/mixer/precimed/mixer.py"
 ```
 To download singularity version of the GSA-MiXeR, use the following command:
 ```
@@ -39,8 +41,13 @@ export MIXER_PY="singularity exec --home pwd:/home ${MIXER_SIF} python /tools/mi
 ```
 To fetch a specific version check packages page on github ([here](https://github.com/precimed/gsa-mixer/pkgs/container/gsa-mixer) for Docker, [here](https://github.com/precimed/gsa-mixer/pkgs/container/gsa-mixer_sif) for Singularity), and update the above with a specific tag, e.g. ``gsa-mixer:sha-a7b47d3``.
 
-The usage of ``${MIXER_PY}`` should be the same regardless of whether you use Docker or singularity version.
-The downside of using GSA-MiXeR through Docker is that this require root access (at least if you run it locally on your machine). We therefore recommend running GSA-MiXeR through a singularity container.
+The usage of ``${MIXER_PY}`` should be the same regardless of whether you use Docker or singularity version,
+however for most users we recommend running through singularity container (mainly because singularity is more commonly available in HPC clusters).
+If you use docker version, you may need to customize ``$DOCKER_RUN`` variable to your environment, e.g. 
+you may not need to invoke docker as sudo;
+you may not need ``--user $(id -u):$(id -g)`` (this forces docker to run commands as current user);
+you may also try replacing ``$PWD`` with ``pwd`` (same as in the above $MIXER_PY command using singularity container),
+so that current working directory is mounted to the container even if you change it after defining ``MIXER_PY`` variable.
 
 The above containers are only generated for CPUs with x86 architecture (e.g. intel or AMD CPUs), and do not support ARM architectures (for example the are not compatible with newer Macbook laptops with M1/M2/M3 chips).
 The containers are based on the following [Dockerfile](Dockerfile), built using Github actions ([this workflow](.github/workflows/docker_build_push.yml)). We also include [scripts/from_docker_image.sh](scripts/from_docker_image.sh) shell script to convert locally built Docker container into singularity, which is only relevant if you're building these containers yourself.
