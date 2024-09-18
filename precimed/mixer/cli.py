@@ -51,11 +51,8 @@ from .utils import NumpyEncoder
 from .utils import _auxoption_tagpdf
 from .utils import _auxoption_none
 
-__version__ = '2.0.0'
 MASTHEAD = "***********************************************************************\n"
-MASTHEAD += "* mixer.py: Univariate and Bivariate Causal Mixture for GWAS\n"
-MASTHEAD += "* Version {V}\n".format(V=__version__)
-MASTHEAD += "* (c) 2016-2023 Oleksandr Frei, Alexey A. Shadrin, Dominic Holland\n"
+MASTHEAD += "* (c) 2016-2024 MiXeR software - Univariate and Bivariate Causal Mixture for GWAS\n"
 MASTHEAD += "* Norwegian Centre for Mental Disorders Research / University of Oslo\n"
 MASTHEAD += "* Center for Multimodal Imaging and Genetics / UCSD\n"
 MASTHEAD += "* GNU General Public License v3\n"
@@ -226,7 +223,7 @@ class LoadFromFile (argparse.Action):
             if v and k != option_string.lstrip('-'):
                 setattr(namespace, k, v)
 
-def parser_add_arguments(args, parser, func, analysis_type):
+def parser_add_arguments(parser, func, analysis_type):
     if analysis_type in ['split_sumstats']:
         parser.add_argument("--trait1-file", type=str, default="", help="GWAS summary statistics for the first trait (required argument);")
 
@@ -415,7 +412,7 @@ def parser_add_arguments(args, parser, func, analysis_type):
 
     parser.set_defaults(func=func)
 
-def parser_ld_add_arguments(args, func, parser):
+def parser_ld_add_arguments(func, parser):
     parser.add_argument("--bfile", type=str, default=None, help="path to plink bfile (required argument)")
     parser.add_argument('--r2min', type=float, default=0.05, help="r2 values above this threshold will be stored in sparse LD format (default: %(default)s)")
     parser.add_argument('--ldscore-r2min', type=float, default=0.001, help="r2 values above this threshold (and below --r2min) will be stored as LD scores that contribute to the cost function via an infinitesimal model (default: %(default)s)")
@@ -432,32 +429,33 @@ def initialize_libbgmg_logging(args):
     libbgmg.dispose()
     return libbgmg
 
-def parse_args(args):
-    parser = argparse.ArgumentParser(description="MiXeR: Univariate and Bivariate Causal Mixture for GWAS.")
+def generate_args_parser(__version__=None):
+    parser = argparse.ArgumentParser(description=f"MiXeR v{__version__}: Univariate and Bivariate Causal Mixture for GWAS.")
+    parser.add_argument('--version', action='version', version=f'MiXeR v{__version__}')
 
     parent_parser = argparse.ArgumentParser(add_help=False)
     parent_parser.add_argument('--argsfile', type=open, action=LoadFromFile, default=None, help=argparse.SUPPRESS) #"file with additional command-line arguments, e.g. those that are across all of your mixer.py runs (--lib, --bim-file and --ld-file)")
     parent_parser.add_argument("--out", type=str, default="mixer", help="prefix for the output files, such as <out>.json (default: %(default)s);")
     parent_parser.add_argument("--lib", type=str, default="libbgmg.so", help="path to libbgmg.so plugin (default: %(default)s); can be also specified via BGMG_SHARED_LIBRARY env variable.")
     parent_parser.add_argument("--log", type=str, default=None, help="file to output log (default: <out>.log); NB! if --log points to an existing file the new lines will be appended to it at the end of the file.")
-    
+
     subparsers = parser.add_subparsers()
 
-    parser_ld_add_arguments(args=args, func=execute_ld_parser, parser=subparsers.add_parser("ld", parents=[parent_parser], help='prepare files with linkage disequilibrium information'))
-    parser_add_arguments(args=args, func=execute_snps_parser, parser=subparsers.add_parser("snps", parents=[parent_parser], help='generate random sets of SNPs'), analysis_type='snps')
-    parser_add_arguments(args=args, func=execute_fit1_or_test1_parser, parser=subparsers.add_parser("fit1", parents=[parent_parser], help='fit univariate MiXeR model'), analysis_type="fit1")
-    parser_add_arguments(args=args, func=execute_fit1_or_test1_parser, parser=subparsers.add_parser("test1", parents=[parent_parser], help='test univariate MiXeR model'), analysis_type="test1")
-    parser_add_arguments(args=args, func=execute_fit2_or_test2_parser, parser=subparsers.add_parser("fit2", parents=[parent_parser], help='fit bivariate MiXeR model'), analysis_type="fit2")
-    parser_add_arguments(args=args, func=execute_fit2_or_test2_parser, parser=subparsers.add_parser("test2", parents=[parent_parser], help='test bivariate MiXeR model'), analysis_type="test2")
-    parser_add_arguments(args=args, func=execute_plsa_parser, parser=subparsers.add_parser("plsa", parents=[parent_parser], help='fit PLSA model'), analysis_type='plsa')
-    parser_add_arguments(args=args, func=execute_perf_parser, parser=subparsers.add_parser("perf", parents=[parent_parser], help='run performance evaluation of the MiXeR'), analysis_type='perf')
-    parser_add_arguments(args=args, func=execute_fixed_effects_parser, parser=subparsers.add_parser("fixed_effects", parents=[parent_parser], help='find fixed effects (beta) at the level of tagging variants'), analysis_type='fixed_effects')
-    parser_add_arguments(args=args, func=execute_split_sumstats_parser, parser=subparsers.add_parser("split_sumstats", parents=[parent_parser], help='split summary statistics file per-chromosome'), analysis_type='split_sumstats')
+    parser_ld_add_arguments(func=execute_ld_parser, parser=subparsers.add_parser("ld", parents=[parent_parser], help='prepare files with linkage disequilibrium information'))
+    parser_add_arguments(func=execute_snps_parser, parser=subparsers.add_parser("snps", parents=[parent_parser], help='generate random sets of SNPs'), analysis_type='snps')
+    parser_add_arguments(func=execute_fit1_or_test1_parser, parser=subparsers.add_parser("fit1", parents=[parent_parser], help='fit univariate MiXeR model'), analysis_type="fit1")
+    parser_add_arguments(func=execute_fit1_or_test1_parser, parser=subparsers.add_parser("test1", parents=[parent_parser], help='test univariate MiXeR model'), analysis_type="test1")
+    parser_add_arguments(func=execute_fit2_or_test2_parser, parser=subparsers.add_parser("fit2", parents=[parent_parser], help='fit bivariate MiXeR model'), analysis_type="fit2")
+    parser_add_arguments(func=execute_fit2_or_test2_parser, parser=subparsers.add_parser("test2", parents=[parent_parser], help='test bivariate MiXeR model'), analysis_type="test2")
+    parser_add_arguments(func=execute_plsa_parser, parser=subparsers.add_parser("plsa", parents=[parent_parser], help='fit PLSA model'), analysis_type='plsa')
+    parser_add_arguments(func=execute_perf_parser, parser=subparsers.add_parser("perf", parents=[parent_parser], help='run performance evaluation of the MiXeR'), analysis_type='perf')
+    parser_add_arguments(func=execute_fixed_effects_parser, parser=subparsers.add_parser("fixed_effects", parents=[parent_parser], help='find fixed effects (beta) at the level of tagging variants'), analysis_type='fixed_effects')
+    parser_add_arguments(func=execute_split_sumstats_parser, parser=subparsers.add_parser("split_sumstats", parents=[parent_parser], help='split summary statistics file per-chromosome'), analysis_type='split_sumstats')
 
-    return parser.parse_args(args)
+    return parser
 
 def log_header(args, subparser_name, lib):
-    defaults = vars(parse_args([subparser_name]))
+    defaults = vars(generate_args_parser().parse_args([subparser_name]))
     opts = vars(args)
     non_defaults = [x for x in opts.keys() if opts[x] != defaults[x]]
     header = MASTHEAD
