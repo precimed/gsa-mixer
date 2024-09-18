@@ -12,6 +12,8 @@ For a real-world application of the GSA-MiXeR you will need to perform the follo
 For further information refer to [Command-line reference](#command-line-reference) section.
 We also provide instructions on how to [generate your own LD reference](#generate-ld-reference) files, for example using UKB or HRC genotypes.
 
+The history of software changes is available in the [CHANGELOG.md](CHANGELOG.md) file.
+
 Please cite [our publication](https://www.nature.com/articles/s41588-024-01771-1) if you use GSA-MiXeR software in your research work.
 
 ## Install GSA-MiXeR
