@@ -328,6 +328,14 @@ class AnnotUnivariateParams(object):
         lib.set_option('aux_option', _auxoption_none)
         return retval
 
+    def tag_ez2(self, lib, trait):
+        pi_mat = self.find_pi_mat(lib.num_snp)
+        sig2_mat = self.find_sig2_mat()
+        lib.set_option('aux_option', _auxoption_ezvec2)
+        retval = lib.calc_unified_univariate_aux(trait, pi_mat, sig2_mat, self._sig2_zeroA, sig2_zeroC=1, sig2_zeroL=self._sig2_zeroL)
+        lib.set_option('aux_option', _auxoption_none)
+        return retval
+
     def power(self, lib, trait, ngrid, zthresh=5.45):
         pi_mat = self.find_pi_mat(lib.num_snp)
         sig2_mat = self.find_sig2_mat()

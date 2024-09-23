@@ -31,6 +31,7 @@ This should be added on top of ``--extract 1000G.EUR.QC.prune_maf0p05_rand2M_r2p
 * The ``mixer.py fit1`` now supports ``--load-params-file <out>.json`` option which can be used with ``<out>.json`` files produced by ``mixer.py plsa``. This is examplified by [PLSA_MIXER_UNIVAR.job](scripts/PLSA_MIXER_UNIVAR.job) script (and, subsequencly, [PLSA_MIXER_BIVAR.job](scripts/PLSA_MIXER_BIVAR.job) script for bivariate analysis). For this to work several new options (namely ``--annot-file``, ``--go-file``, ``--go-extend-bp``) were added to ``fit1``, ``fit2``, ``test1`` and ``test2`` analyses. These arguments must be kept consistent with arguments used in ``mixer.py plsa`` analysis used to produce the univariate model passed via ``--load-params-file``. The role of ``fit1`` (when used with ``--load-params-file``) is to estimate trait's polygenicity (which is only partly supported by ``mixer.py plsa`` analysis).
 * New ``mixer.py fit1 --fit-sequence infinitesimal`` and ``mixer.py fit2 --fit-sequence infinitesimal`` allow to fit infinitesimal univariate and bivariate models.
 * ``rg_sig2_factor`` output is included in the ``.csv`` tables from cross-trait analysis
+* ``tag_ez2`` column included in ``.snps.csv`` tables, enabled by ``--make-snps-file``
 
 ## [2.0.1] - 2024-09-18 - https://github.com/precimed/gsa-mixer
 

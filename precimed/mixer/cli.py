@@ -1301,6 +1301,7 @@ def find_per_snp_information_univariate(libbgmg_vec, params, trait_index, extend
             libbgmg.weights = posterior_weights
             c0, c1, c2 = params.delta_posterior(libbgmg, trait_index)
             tag_pdf = params.tag_pdf(libbgmg, trait_index)
+            tag_ez2 = params.tag_ez2(libbgmg, trait_index)
             libbgmg.weights = original_weights
             defvec = libbgmg.defvec
             df_snps.append(pd.DataFrame({
@@ -1317,6 +1318,7 @@ def find_per_snp_information_univariate(libbgmg_vec, params, trait_index, extend
                 'posteriordeltaC1': tagvec_as_snpvec(c1, defvec),
                 'posteriordeltaC2': tagvec_as_snpvec(c2, defvec),
                 'tag_pdf': tagvec_as_snpvec(tag_pdf, defvec),
+                'tag_ez2': tagvec_as_snpvec(tag_ez2, defvec),
             }))
         else:
             df_snps.append(pd.DataFrame({
