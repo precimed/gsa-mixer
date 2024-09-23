@@ -1129,7 +1129,7 @@ def execute_fit1_or_test1_parser(args):
                 results['qqplot_bins'].append(calc_qq_plot(libbgmg, params, trait_index, args.downsample_factor, mask,
                     title='het \\in [{:.3g},{:.3g}); L \\in [{:.3g},{:.3g})'.format(het_bins_display[i], het_bins_display[i+1], tld_bins_display[j], tld_bins_display[j+1])))
 
-    if True:
+    if args.make_snps_file:
         trait_index = 1
         libbgmg.log_message('Finding per-SNP information...')
         df=find_per_snp_information_univariate([libbgmg], params, trait_index, args.make_snps_file)
@@ -1589,7 +1589,7 @@ def execute_plsa_parser(args):
 
     results['params'] = _params_to_dict(params)
 
-    if True:
+    if args.make_snps_file:
         libbgmg.log_message('Finding per-SNP information...')
         df=find_per_snp_information_univariate(libbgmg_vec, params, trait_index, args.make_snps_file)
         fname = args.out + '.snps.csv'
