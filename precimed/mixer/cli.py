@@ -346,6 +346,7 @@ def parser_add_arguments(parser, func, analysis_type):
         parser.add_argument("--annot-file", type=str, default=None, help="(optional) path to binary annotations in LD score regression format, i.e. <path>/baseline.@.annot.gz for fitting enrichment model model. This must include the first column with all ones ('base' annotation category covering the entire genome).")
         parser.add_argument("--go-file", type=str, default=None, help="(optional) path to GO antology file for fitting enrichment model model. The format is described in the documentation. 'base' category that covers entire genome will be added automatically.")
         parser.add_argument("--go-extend-bp", type=int, default=GO_EXTEND_BP_DEFAULT, help="extends each gene by this many base pairs, defining a symmetric window up and downstream (default: %(default)s)")
+        parser.add_argument('--nckoef', default=None, type=float, help="(optional) coefficient translating total number of causal variants to the number of causal variants explaining 90% of trait's heritability; by default this is estimated from the data (up until MiXeR v1.3 this was set to 0.319)")
 
         if analysis_type in ['fit1', 'test1']:
             parser.add_argument('--cubature-rel-error', type=float, default=1e-5, help="relative error for cubature stop criteria (default: %(default)s); applies to 'convolve' cost calculator")
@@ -1079,7 +1080,9 @@ def execute_fit1_or_test1_parser(args):
     libbgmg.set_option('kmax', 1 if (params._pi == 1) else args.kmax[0])
     libbgmg.set_option('kmax_pdf', 1 if (params._pi == 1) else args.kmax_pdf[0])
 
-    funcs, _ = _calculate_univariate_uncertainty_funcs(None)
+    NCKoef = params.find_nckoef() if (args.nckoef is None) else args.nckoef
+    results['options']['nckoef'] = NCKoef
+    funcs, _ = _calculate_univariate_uncertainty_funcs(None, NCKoef)
     for func_name, func in funcs: results['ci'][func_name] = {'point_estimate': func(params)}
 
     ci_sample = None
@@ -1087,7 +1090,7 @@ def execute_fit1_or_test1_parser(args):
         libbgmg.log_message("Uncertainty estimation...")
         libbgmg.set_option('cost_calculator', _cost_calculator_gaussian)
         parametrization = UnivariateParametrization_natural_axis(params, libbgmg, trait=1)
-        results['ci'], ci_sample = _calculate_univariate_uncertainty(params, parametrization, args.ci_alpha, args.ci_samples, args.ci_power_samples)
+        results['ci'], ci_sample = _calculate_univariate_uncertainty(params, parametrization, args.ci_alpha, args.ci_samples, NCKoef)
         for k, v in results['ci'].items():
             libbgmg.log_message('{}: point_estimate={:.3g}, mean={:.3g}, median={:.3g}, std={:.3g}, ci=[{:.3g}, {:.3g}]'.format(k, v['point_estimate'], v['mean'], v['median'], v['std'], v['lower'], v['upper']))
         libbgmg.log_message("Uncertainty estimation done.")
@@ -1161,7 +1164,9 @@ def execute_fit2_or_test2_parser(args):
     libbgmg.set_option('kmax', 1 if (params._pi12 == 1) else args.kmax[0])
     libbgmg.set_option('kmax_pdf', 1 if (params._pi12 == 1) else args.kmax_pdf[0])
 
-    funcs, _ = _calculate_bivariate_uncertainty_funcs(None)
+    NCKoef = params.find_nckoef() if (args.nckoef is None) else args.nckoef
+    results['options']['nckoef'] = NCKoef
+    funcs, _ = _calculate_bivariate_uncertainty_funcs(None, NCKoef)
     for func_name, func in funcs: results['ci'][func_name] = {'point_estimate': func(params)}
 
     if args.qq_plots:

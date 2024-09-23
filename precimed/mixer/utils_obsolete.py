@@ -63,21 +63,6 @@ class UnivariateParams_obsolete(object):
                                                  sig2_zeroA=self._sig2_zeroA, sig2_zeroC=1, sig2_zeroL=0, zthresh=zthresh, ngrid=ngrid)
         return np.divide(svec_num, svec_denom)
 
-# bivariate uncertainty is now only estimated through standard deviation of point estimates across 20 re-runs
-def _calculate_bivariate_uncertainty(parametrization, ci_samples, alpha, totalhet, num_snps, num_samples):
-    funcs, stats = _calculate_bivariate_uncertainty_funcs(alpha, totalhet, num_snps)
-    hessian = _hessian_robust(nd.Hessian(parametrization._calc_cost)(parametrization._init_vec), 
-                              nd.Hessdiag(parametrization._calc_cost)(parametrization._init_vec))
-    x_sample = np.random.multivariate_normal(parametrization._init_vec, np.linalg.inv(hessian), num_samples)
-    sample = [parametrization._vec_to_params(x, params1=ci_s1, params2=ci_s2) for ci_s1, ci_s2, x in zip(ci_samples[0], ci_samples[1], x_sample)]
-    result = {}
-    for func_name, func in funcs:
-        result[func_name] = {'point_estimate': func(parametrization._vec_to_params(parametrization._init_vec))}
-        param_vector = [func(s) for s in sample]
-        for stat_name, stat in stats:
-            result[func_name][stat_name] = stat(param_vector)
-    return result, sample
-
 # Unconstrained parametrization with "independent axis", i.e.
 #   x1 = log(sig2_zeroA)
 #   x2 = log(atanh(pi)) + log(sig2_beta)

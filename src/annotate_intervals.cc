@@ -3,6 +3,7 @@
 #include <vector>
 #include <set>
 #include <cstring>
+#include <limits>
 
 #include "intervaltree/IntervalTree.h"
 #include "boost/icl/interval_map.hpp"

@@ -3,7 +3,7 @@
 # _log_exp_converter, _logit_logistic_converter, _arctanh_tanh_converter - converters to map bounded parameters into -inf, +inf range
 # UnivariateParams, BivariateParams - represent parameters, with basic functionality like "calculate cost"
 # Several univariate and bivariate parametrizations - suitable for fitting and (some specific parametrization) for uncertainty calculation
-# _calculate_univariate_uncertainty, _calculate_bivariate_uncertainty - estimates confidence intervals for parameters and their aggregates (like h2 or rg) 
+# _calculate_univariate_uncertainty - estimates confidence intervals for parameters and their aggregates
  
 import numpy as np
 import numdifftools as nd
@@ -220,11 +220,11 @@ class AnnotUnivariateParams(object):
 
         sig2_beta_effective = self.sig2_beta / self.pi  # divide by pi, to ensure that pi has no effect on heritability (as this helps to improve convergence)
 
-        sig2_annot_array = np.maximum(0, np.array(self._sig2_annot if (sig2_annot is None) else sig2_annot)).flatten()
+        sig2_annot_array = np.maximum(0, np.array(self._sig2_annot if (sig2_annot is None) else sig2_annot, dtype=np.float32)).flatten()
         sig2_annot_scale = np.mean(sig2_annot_array)
         sig2_annot_p = np.power(sig2_annot_array / sig2_annot_scale, self._p_annot).astype(np.float32)
         
-        sig2_gene_array = np.maximum(0, np.array(self._sig2_gene if (sig2_gene is None) else sig2_gene)).flatten()
+        sig2_gene_array = np.maximum(0, np.array(self._sig2_gene if (sig2_gene is None) else sig2_gene, dtype=np.float32)).flatten()
         sig2_gene_scale = np.mean(sig2_gene_array)
         sig2_gene_p = np.power(sig2_gene_array / sig2_gene_scale, self._p_gene).astype(np.float32)
 
@@ -254,8 +254,8 @@ class AnnotUnivariateParams(object):
         h2_vec = self.find_h2_vec()
         return (annomat if (annomat is not None) else self._annomat).transpose().dot(h2_vec.reshape((len(h2_vec), 1))).reshape([1, -1])
 
-    # find how many causal SNPs are expected to explain a given percentage of SNP-based heritability
-    def find_nc(self, quantile=0.9, num_iter=10000):
+    # find the proportion of causal SNPs expected to explain a given percentage of SNP-based heritability
+    def find_nckoef(self, quantile=0.9, num_iter=10000):
         if self._pi == 1.0: return np.nan
         sig2_mat = self.find_sig2_mat().flatten()
         hetvec = np.float32(2.0) * self._mafvec * (1-self._mafvec)
@@ -273,7 +273,14 @@ class AnnotUnivariateParams(object):
             h2_vec = np.sort(h2_vec)[::-1]
             h2_vec = np.cumsum(h2_vec)
             result[i] = np.argmax(h2_vec >= (quantile * h2_vec[-1]))
-        return np.mean(result)
+        NCKoef = np.mean(result) / (len(hetvec) * self._pi)
+        NCKoef_se = (np.std(result) / (len(hetvec) * self._pi)) / np.sqrt(len(result))
+        self._libbgmg.log_message(f"Extimated NCKoef={NCKoef} (SE={NCKoef_se})")
+        return NCKoef
+
+    def find_mean_sig2_beta(self):
+        sig2_mat = self.find_sig2_mat().flatten()
+        return np.mean(sig2_mat)
 
     def find_annot_snps(self, annomat=None):
         return np.sum(annomat if (annomat is not None) else self._annomat, 0)
@@ -641,6 +648,16 @@ class BivariateParams(object):
     def _rg(self):
         return self._rg_sig2_factor() * self._rho_beta * self._pi12 / np.sqrt(self._params1.pi * self._params2.pi)
 
+    def find_nckoef(self):
+        # NCKoef is a coefficient between 0 and 1 that represents the proportion of causal variants explaining 90% of trait's heritability.
+        # In MiXeR v1.3 this was hard-coded to 0.319, a value specific to the basic MiXeR model (1-pi1)*N(0,0) + pi1*N(0, sigma2_beta),
+        # and estimated from 1kG EUR reference panel.
+        # In MiXeR v2.0 and onwards this coefficient depends on other parameters of the AnnotUnivariateParams models,
+        # and its also evaluated based on the reference panel being used.
+        NCKoef1 = self._params1.find_nckoef()
+        NCKoef2 = self._params2.find_nckoef()
+        return np.sqrt(NCKoef1 * NCKoef2)
+
     def _validate(self):
         assert(self._params1._sig2_zeroL == 0)
         assert(self._params2._sig2_zeroL == 0)
@@ -920,11 +937,11 @@ def _hessian_robust(hessian, hessdiag):
     if np.less_equal(np.linalg.eigvals(hessinv), 0).any(): return hessdiag
     return hessian
 
-def _calculate_univariate_uncertainty_funcs(alpha):
+def _calculate_univariate_uncertainty_funcs(alpha, NCKoef):
     funcs = [('pi', lambda x: x.pi),
              ('nc', lambda x: x.pi * x._libbgmg.num_snp),
-             ('nc@p9', lambda x: x.find_nc(quantile=0.9)),
-             ('sig2_beta', lambda x: x._sig2_zeroA),
+             ('nc@p9', lambda x: NCKoef * x.pi * x._libbgmg.num_snp),
+             ('sig2_beta', lambda x: x.find_mean_sig2_beta()),
              ('sig2_zeroA', lambda x: x._sig2_zeroA),
              ('s', lambda x: x._s),
              ('l', lambda x: x._l),
@@ -936,11 +953,9 @@ def _calculate_univariate_uncertainty_funcs(alpha):
              ('upper', lambda x: np.percentile(x, 100.0 * (1-alpha/2)))]
     return funcs, stats
 
-# num_samples_reduced - some functions such as nc@p9 take long time to compute
-# for them we're using reduced number of samples
-def _calculate_univariate_uncertainty(params, parametrization, alpha, num_samples, num_samples_reduced):
+def _calculate_univariate_uncertainty(params, parametrization, alpha, num_samples, NCKoef):
     init_vec = parametrization.params_to_vec(params)
-    funcs, stats = _calculate_univariate_uncertainty_funcs(alpha)
+    funcs, stats = _calculate_univariate_uncertainty_funcs(alpha, NCKoef)
     hessian = _hessian_robust(nd.Hessian(parametrization.calc_cost)(init_vec), 
                               nd.Hessdiag(parametrization.calc_cost)(init_vec))
     x_sample = np.random.multivariate_normal(init_vec, np.linalg.inv(hessian), num_samples)
@@ -948,14 +963,16 @@ def _calculate_univariate_uncertainty(params, parametrization, alpha, num_sample
     result = {}
     for func_name, func in funcs:
         result[func_name] = {'point_estimate': func(parametrization.vec_to_params(init_vec))}
-        param_vector = [func(s) for s in (sample[:(num_samples_reduced-1)] if (func_name in ['nc@p9']) else sample)]
+        param_vector = [func(s) for s in sample]
         for stat_name, stat in stats:
             result[func_name][stat_name] = stat(param_vector)
     return result, sample
 
-def _calculate_bivariate_uncertainty_funcs(alpha):
+def _calculate_bivariate_uncertainty_funcs(alpha, NCKoef):
     funcs = [('sig2_zero_T1', lambda x: x._params1._sig2_zeroA),
              ('sig2_zero_T2', lambda x: x._params2._sig2_zeroA),
+             ('sig2_beta_T1', lambda x: x._params1.find_mean_sig2_beta()),
+             ('sig2_beta_T2', lambda x: x._params2.find_mean_sig2_beta()),
              ('h2_T1', lambda x: x._params1.find_h2()),
              ('h2_T2', lambda x: x._params2.find_h2()),
              ('rho_zero', lambda x: x._rho_zero),
@@ -973,10 +990,12 @@ def _calculate_bivariate_uncertainty_funcs(alpha):
              ('nc12', lambda x: x._params1._libbgmg.num_snp * x._pi12),
              ('nc1u', lambda x: x._params1._libbgmg.num_snp * x._params1.pi),
              ('nc2u', lambda x: x._params1._libbgmg.num_snp * x._params2.pi),
-             ('nc1u@p9', lambda x: x._params1.find_nc(quantile=0.9)),
-             ('nc2u@p9', lambda x: x._params2.find_nc(quantile=0.9)),
+             ('nc1@p9', lambda x: NCKoef * x._params1._libbgmg.num_snp * (x._params1.pi - x._pi12)),
+             ('nc2@p9', lambda x: NCKoef * x._params1._libbgmg.num_snp * (x._params2.pi - x._pi12)),
+             ('nc12@p9', lambda x: NCKoef * x._params1._libbgmg.num_snp * x._pi12),
              ('totalpi', lambda x: (x._params1.pi+x._params2.pi-x._pi12)),
              ('totalnc', lambda x: x._params1._libbgmg.num_snp * (x._params1.pi+x._params2.pi-x._pi12)),
+             ('totalnc@p9', lambda x: NCKoef * x._params1._libbgmg.num_snp * (x._params1.pi+x._params2.pi-x._pi12)),
              ('pi1_over_totalpi', lambda x: (x._params1.pi - x._pi12) / (x._params1.pi + x._params2.pi - x._pi12)),
              ('pi2_over_totalpi', lambda x: (x._params2.pi - x._pi12) / (x._params1.pi + x._params2.pi - x._pi12)),
              ('pi12_over_totalpi', lambda x: x._pi12 / (x._params1.pi + x._params2.pi - x._pi12)),
@@ -1009,7 +1028,7 @@ def calc_qq_data(zvec, weights, hv_logp):
     data_y = -np.log10(2*scipy.stats.norm.cdf(-np.abs(zvec)))           # step 1
     si = np.argsort(data_y); data_y = data_y[si]                        # step 2
     data_x=-np.log10(np.flip(np.cumsum(np.flip(data_weights[si]))))     # step 2
-    data_idx = np.not_equal(data_y, np.concatenate((data_y[1:], [np.Inf])))
+    data_idx = np.not_equal(data_y, np.concatenate((data_y[1:], [np.inf])))
     data_logpvec = interp1d(data_y[data_idx], data_x[data_idx],         # step 3
                             bounds_error=False, fill_value=np.nan)(hv_logp)
     return data_logpvec

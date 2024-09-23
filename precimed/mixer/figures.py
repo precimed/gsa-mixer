@@ -5,6 +5,7 @@ import json
 import os
 import itertools
 import glob
+import traceback
 
 import pandas as pd
 import numpy as np
@@ -53,18 +54,18 @@ def make_qq_plot(qq, ci=True, ylim=7.3, xlim=7.3):
     hNull = plt.plot(hv_logp, hv_logp, 'k--')
     plt.ylim(0, ylim); plt.xlim(0, xlim)
 
-def make_venn_plot(data, flip=False, traits=['Trait1', 'Trait2'], colors=[0, 1], max_size=None, formatter=None, statistic=["point_estimate"], plot_rg=True):
+def make_venn_plot(data, flip=False, factor='K', traits=['Trait1', 'Trait2'], colors=[0, 1], max_size=None, formatter=None, statistic=["point_estimate"], plot_rg=True):
     cm = plt.cm.get_cmap('tab10')
 
-    with_std = (len(statistic) > 1)
-    n1 = data['ci']['pi1'][statistic[0]]; n1_se = data['ci']['pi1'][statistic[1]] if with_std else None
-    n2 = data['ci']['pi2'][statistic[0]]; n2_se = data['ci']['pi2'][statistic[1]] if with_std else None
-    n12 = data['ci']['pi12'][statistic[0]]; n12_se = data['ci']['pi12'][statistic[1]] if with_std else None
-    rg = data['ci']['rg'][statistic[0]]
+    if factor=='K': scale_factor=1000
+    elif factor=='': scale_factor=1
+    else: raise(ValueError('Unknow factor: {}'.format(factor)))
 
-    n1=round(n1, 10); n2=round(n2, 10); n12=round(n12, 10)
-    if with_std:
-        n1_se=round(n1_se, 10); n2_se=round(n2_se, 10); n12_se=round(n12_se, 10)
+    with_std = (len(statistic) > 1)
+    n1 = data['ci']['nc1@p9'][statistic[0]]/scale_factor; n1_se = data['ci']['nc1@p9'][statistic[1]]/scale_factor if with_std else None
+    n2 = data['ci']['nc2@p9'][statistic[0]]/scale_factor; n2_se = data['ci']['nc2@p9'][statistic[1]]/scale_factor if with_std else None
+    n12 = data['ci']['nc12@p9'][statistic[0]]/scale_factor; n12_se = data['ci']['nc12@p9'][statistic[1]]/scale_factor if with_std else None
+    rg = data['ci']['rg'][statistic[0]]
 
     if max_size is None: max_size = n1+n2+n12
     if flip: n1, n2 = n2, n1; n1_se, n2_se = n2_se, n1_se
@@ -77,15 +78,13 @@ def make_venn_plot(data, flip=False, traits=['Trait1', 'Trait2'], colors=[0, 1],
     c=venn2_circles(subsets = (n1, n2, n12), normalize_to=(n1+n2+n12)/max_size, linewidth=1.5, color="white")
     if formatter==None:
         if (n1_se is not None) and (n2_se is not None) and (n12_se is not None):
-            formatter1 = '{:.1e}\n({:.1e})' 
+            formatter1 = '{:.2f}\n({:.2f})' if ((n1+n12+n2) < 1) else '{:.1f}\n({:.1f})'
         else:
-            formatter1 = '{:.1e}'
+            formatter1 = '{:.2f}' if ((n1+n12+n2) < 1) else '{:.1f}'
         formatter = [formatter1, formatter1, formatter1]
-    def nice_str(s):
-        return s.replace('e-0', 'e-')
-    v.get_label_by_id('100').set_text(nice_str(formatter[0].format(n1, n1_se)))
-    v.get_label_by_id('010').set_text(nice_str(formatter[1].format(n2, n2_se)))
-    v.get_label_by_id('110').set_text(nice_str(formatter[2].format(n12, n12_se)))
+    v.get_label_by_id('100').set_text(formatter[0].format(n1, n1_se))
+    v.get_label_by_id('010').set_text(formatter[1].format(n2, n2_se))
+    v.get_label_by_id('110').set_text(formatter[2].format(n12, n12_se))
 
     plt.xlim([-0.75, 0.75]), plt.ylim([-0.7, 0.6])
     newline=''
@@ -231,7 +230,7 @@ def extract_brute1_results(data):
     return brute1_results
 
 def extract_likelihood_function(data):
-    funcs, stats = _calculate_bivariate_uncertainty_funcs(alpha=0.05)
+    funcs, stats = _calculate_bivariate_uncertainty_funcs(alpha=0.05, NCKoef=data['options']['nckoef'])
     brute1_results = extract_brute1_results(data)
     if not brute1_results:
         return [], []
@@ -241,7 +240,7 @@ def extract_likelihood_function(data):
     for params in bivarite_params_vec:
         params._params1._libbgmg = libbgmg_mock
         params._params2._libbgmg = libbgmg_mock
-    return [dict(funcs)['pi12'](params) for params in bivarite_params_vec], brute1_results['Jout']
+    return [dict(funcs)['nc12@p9'](params) for params in bivarite_params_vec], brute1_results['Jout']
 
 def plot_likelihood(data):
     if 'likelihood' in data:
@@ -258,20 +257,19 @@ def plot_likelihood(data):
         plot_y_def = np.sum(np.isfinite(plot_y), 0)
         plot_y = np.nanmean(plot_y, 0)
         plot_y[plot_y_def < 3] = np.nan
-        plt.plot(plot_x, plot_y)
+        plt.plot(plot_x / 1000, plot_y)
         for like_x, like_y in data['likelihood']:
-            plt.plot(np.array(like_x), like_y - np.min(like_y), linestyle='dotted', color=cm.colors[0], alpha=0.3)
+            plt.plot(np.array(like_x)/1000, like_y - np.min(like_y), linestyle='dotted', color=cm.colors[0], alpha=0.3)
     else:        
         like_x, like_y = extract_likelihood_function(data)
         if (not like_x) or (not like_y):
             print('--json argument does not contain brute1 optimization results, skip likelihood plot generation')
             return
-        plt.plot(np.array(like_x), like_y - np.min(like_y))
+        plt.plot(np.array(like_x)/1000, like_y - np.min(like_y))
         plt.title('-log(L) + const')
-    plt.xlabel('pi12',fontsize=12)
+    plt.xlabel('Shared variant number [k]',fontsize=12)
     plt.ylabel('-log(L) + const',fontsize=12)
     plt.title('Log-likelihood',fontsize=13)
-    plt.gca().ticklabel_format(axis='x', style='sci', scilimits=(0,0))
 
 def make_power_plot(data_vec, colors=None, traits=None, power_thresh=None):
     if colors is None: colors = list(range(0, len(data_vec)))
@@ -399,7 +397,7 @@ def execute_two_parser(args):
     print('generate {}.csv from {} json files...'.format(args.out, len(files)))
 
     for fname in files:
-        keys = 'dice pi1 pi2 pi12 nc1 nc2 nc12 rho_zero rho_beta rg_sig2_factor rg fraction_concordant_within_shared'.split()
+        keys = 'dice pi1 pi2 pi12 nc1@p9 nc2@p9 nc12@p9 rho_zero rho_beta rg_sig2_factor rg fraction_concordant_within_shared'.split()
         try:
             data = json.loads(open(fname).read())
             if 'dice' not in data['ci']:
@@ -413,8 +411,8 @@ def execute_two_parser(args):
             for k in keys:   # test that all keys are available
                 for stat in args.statistic:
                     val = data['ci'][k][stat]
-        except:
-            print('error reading from {}, skip'.format(fname))
+        except Exception:
+            print(f'skip {fname} due to the following error:\n{traceback.format_exc()}')
             continue
 
         insert_key_to_dictionary_as_list(df_data, 'fname', fname)
@@ -547,7 +545,7 @@ def execute_combine_parser(args):
     results['analysis'] = values[0]
 
     univariate_keys = ['pi', 'nc', 'nc@p9', 'sig2_beta', 'sig2_zeroA', 's', 'l', 'h2']
-    bivariate_keys = ['sig2_zeroA_T1', 'sig2_zeroA_T2', 'rho_zero', 'rho_beta', 'rg_sig2_factor', 'rg', 'pi1', 'pi2', 'pi12', 'pi1u', 'pi2u', 'dice', 'nc1', 'nc2', 'nc12', 'nc1u', 'nc2u', 'nc1u@p9', 'nc2u@p9', 'totalpi', 'totalnc', 'pi1_over_totalpi', 'pi2_over_totalpi', 'pi12_over_totalpi', 'pi1_over_pi1u', 'pi2_over_pi2u', 'pi12_over_pi1u', 'pi12_over_pi2u', 'pi1u_over_pi2u', 'pi2u_over_pi1u']
+    bivariate_keys = ['sig2_zeroA_T1', 'sig2_zeroA_T2', 'sig2_beta_T1', 'sig2_beta_T2', 'h2_T1', 'h2_T2', 'rho_zero', 'rho_beta', 'rg_sig2_factor', 'rg', 'pi1', 'pi2', 'pi12', 'pi1u', 'pi2u', 'dice', 'nc1', 'nc2', 'nc12', 'nc1u', 'nc2u', 'nc1@p9', 'nc2@p9', 'nc12@p9', 'totalpi', 'totalnc', 'totalnc@p9', 'pi1_over_totalpi', 'pi2_over_totalpi', 'pi12_over_totalpi', 'pi1_over_pi1u', 'pi2_over_pi2u', 'pi12_over_pi1u', 'pi12_over_pi2u', 'pi1u_over_pi2u', 'pi2u_over_pi1u']
     for key in (univariate_keys + bivariate_keys):
         values = [data['ci'][key]['point_estimate'] for data in data_vec if (key in data['ci'])]
         if values: results['ci'][key] = {'mean': np.mean(values), 'median':np.median(values), 'std': np.std(values), 'min': np.min(values), 'max': np.max(values)}
@@ -652,8 +650,8 @@ def execute_one_parser(args):
             for k in keys:   # test that all keys are available
                 for stat in args.statistic:
                     val = data['ci'][k][stat]
-        except:
-            print('error reading from {}, skip'.format(fname))
+        except Exception:
+            print(f'skip {fname} due to the following error:\n{traceback.format_exc()}')
             continue
 
         insert_key_to_dictionary_as_list(df_data, 'fname', fname)

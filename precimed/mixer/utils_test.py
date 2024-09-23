@@ -187,7 +187,7 @@ def test_AnnotUnivariateParamsWithGenemat():
     assert(np.all(np.isclose(gene_enrich, np.array(expected_enrich).astype(np.float32))))
 
 def check_optimize_result(optimize_result, expected_cost_df):
-    assert(optimize_result['message'] in ['Optimization terminated successfully.', 'Not a bracketing interval.'])
+    assert(optimize_result['message'] in ['Optimization terminated successfully.', 'Not a bracketing interval.', 'Bracketing values (xa, xb, xc) do not fulfill this requirement: (f(xb) < f(xa)) and (f(xb) < f(xc))'])
     assert(optimize_result['nfev'] >= 4)
     assert(optimize_result['nit'] >= 1)
     assert(np.isfinite(optimize_result['AIC']))
@@ -236,7 +236,8 @@ def test_univariate_uncertainty():
     libbgmg_mock = LibBgmgMock(num_snp=10, num_tag=5, make_weights=True)    
     num_ci_samples = 5
     params = get_true_params(libbgmg_mock)
-    ci, ci_sample = _calculate_univariate_uncertainty(params, UnivariateParametrization_natural_axis(params, libbgmg_mock, trait=1), 0.95, num_samples=num_ci_samples, num_samples_reduced=num_ci_samples)
+    NCKoef = params.find_nckoef()
+    ci, ci_sample = _calculate_univariate_uncertainty(params, UnivariateParametrization_natural_axis(params, libbgmg_mock, trait=1), 0.95, num_samples=num_ci_samples, NCKoef=NCKoef)
     #print(ci, ci_sample)
     for k in ci.keys():
         for stat in ci[k].keys():

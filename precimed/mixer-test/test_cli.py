@@ -44,6 +44,12 @@ data = 'precimed/mixer-test/data'
 def subprocess_run(call):
     return subprocess.run(filter(None, ' '.join(call.split('\\')).replace('\n', '').split(' ')))
 
+# py.test precimed/mixer-test/test_cli.py  -k version
+def test_version():
+    call=f'python precimed/mixer.py --version'
+    out = subprocess_run(call)
+    assert out.returncode == 0
+
 # py.test precimed/mixer-test/test_cli.py  -k test_ld
 @pytest.mark.parametrize("chr_label", [21, 22])
 def test_ld(chr_label):
@@ -175,6 +181,7 @@ def test_test2():
 --ld-file {data}/g1000_eur_hm3_chr@.ld \
 --chr2use 21-22 --seed 123 \
 --downsample-factor 100 \
+--kmax-pdf 5 \
 --out {data}/test2
 """
     out = subprocess_run(call)

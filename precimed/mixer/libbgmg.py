@@ -501,17 +501,19 @@ class LibBgmg(object):
         # We look into 4 places: lib_name, BGMG_SHARED_LIBRARY, packaged default_lib_name
         # and then default_lib_name
         cdll = None
+        exception_message = ""
         for ln in lib_names:
+            if not os.path.isfile(ln):
+                continue
             try:
                 cdll = ctypes.CDLL(ln)
                 break
             except OSError as e:
-                if ln == default_lib_name:
-                    exc = e
+                exception_message += f'{e}'
                 continue
         if cdll is None:
             exception_message = (
-                '{exc}\n'
+                '{exception_message}\n'
                 'Failed to load BGMG shared library from `{lib_names}`. '
                 'Try to add the location of `{default_lib_name}` file into your PATH '
                 'system variable, or to set BGMG_SHARED_LIBRARY - the specific system variable '
