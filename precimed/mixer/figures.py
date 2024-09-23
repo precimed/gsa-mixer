@@ -644,7 +644,7 @@ def execute_one_parser(args):
     if len(files) == 0: raise(ValueError('no files detected, check --json {}'.format(args.json)))
     print('generate {}.csv from {} json files...'.format(args.out, len(files)))
     for fname in files:
-        keys = 'pi sig2_zeroA s l h2 nc nc@p9'.split()
+        keys = 'pi sig2_beta sig2_zeroA s l h2 nc@p9'.split()
         try:
             data = json.loads(open(fname).read())
             for k in keys:   # test that all keys are available
