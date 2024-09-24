@@ -1215,6 +1215,7 @@ def find_per_snp_information_bivariate(libbgmg, params):
     pi_mat_orig = params.find_pi_mat(num_snp)
 
     libbgmg.set_option('aux_option', _auxoption_tagpdf)
+    libbgmg.set_option('cost_calculator', _cost_calculator_sampling)
 
     tag_pdf_xxx = libbgmg.calc_unified_bivariate_aux(pi_mat_orig, params.find_sig2_mat(), params.find_rho_vec(num_snp),
         sig2_zeroA=[params._params1._sig2_zeroA, params._params2._sig2_zeroA],
@@ -1300,6 +1301,7 @@ def find_per_snp_information_univariate(libbgmg_vec, params, trait_index, extend
             posterior_weights[np.isfinite(libbgmg.get_zvec(trait_index)) & np.isfinite(libbgmg.get_nvec(trait_index))] = 1
             libbgmg.weights = posterior_weights
             c0, c1, c2 = params.delta_posterior(libbgmg, trait_index)
+            libbgmg.set_option('cost_calculator', _cost_calculator_sampling)
             tag_pdf = params.tag_pdf(libbgmg, trait_index)
             tag_ez2 = params.tag_ez2(libbgmg, trait_index)
             libbgmg.weights = original_weights
