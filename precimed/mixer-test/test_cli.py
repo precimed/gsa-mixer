@@ -113,6 +113,7 @@ def test_test1(trait_index):
 --bim-file {data}/g1000_eur_hm3_chr@.bim \
 --ld-file {data}/g1000_eur_hm3_chr@.ld \
 --chr2use 21-22 --seed 123 \
+--make-snps-file \
 --out {data}/trait{trait_index}.test1
 """
     out = subprocess_run(call)
@@ -161,7 +162,6 @@ def test_fit2():
 --chr2use 21-22 --seed 123 --diffevo-fast-repeats 2 \
 --fit-sequence diffevo-fast neldermead-fast brute1-fast brent1-fast \
 --exclude-ranges chr21:20-21MB chr22:19100-19900KB \
---make-snps-file \
 --out {data}/fit2
 """
     out = subprocess_run(call)
@@ -180,8 +180,10 @@ def test_test2():
 --bim-file {data}/g1000_eur_hm3_chr@.bim \
 --ld-file {data}/g1000_eur_hm3_chr@.ld \
 --chr2use 21-22 --seed 123 \
---downsample-factor 100 \
---kmax-pdf 5 \
+--hardprune-r2 0.1 \
+--downsample-factor 1000 \
+--kmax-pdf 5 --kmax 50 \
+--make-snps-file \
 --out {data}/test2
 """
     out = subprocess_run(call)
@@ -252,7 +254,6 @@ def run_plsa(baseline, trait, se_samples=None, go_all_genes_label=None):
 --exclude-ranges chr21:20-21MB chr22:19100-19900KB \
 --chr2use 21-22 --seed 123 \
 --adam-epoch 3 3 --adam-step 0.064 0.032 \
---make-snps-file \
 --out {data}/{f"plsa_{trait}_baseline" if baseline else f"plsa_{trait}_model"}"""
     call += ' --gsa-base' if baseline else ' --gsa-full'
     call += '' if se_samples is None else f' --se-samples {se_samples} '
@@ -309,7 +310,6 @@ def run_plsa_model_vs_baseline_enrichment(calc_loglike_diff_go_test):
 --extract {data}/g1000_eur_hm3_chr@.snps \
 --exclude-ranges chr21:20-21MB chr22:19100-19900KB \
 --chr2use 21-22 --seed 123 \
---make-snps-file \
 --out {data}/plsa_{trait}_model-vs-baseline"""
     out = subprocess_run(call)
     assert out.returncode == 0
@@ -365,7 +365,7 @@ def test_plsa_test1():
 --annot-file {data}/g1000_eur_hm3_chr@.annot.gz \
 --go-file {data}/go-file-baseline.csv \
 --chr2use 21-22 --seed 123 \
---make-snps-file \
+--make-snps-file --kmax 1000 \
 --out {data}/plsa_trait1_baseline.test1
 """
     out = subprocess_run(call)

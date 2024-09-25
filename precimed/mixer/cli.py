@@ -1593,7 +1593,7 @@ def execute_plsa_parser(args):
 
     results['params'] = _params_to_dict(params)
 
-    if args.make_snps_file:
+    if args.gsa_base or args.make_snps_file:
         libbgmg.log_message('Finding per-SNP information...')
         df=find_per_snp_information_univariate(libbgmg_vec, params, trait_index, args.make_snps_file)
         fname = args.out + '.snps.csv'
