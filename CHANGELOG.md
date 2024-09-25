@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - https://github.com/precimed/gsa-mixer
 
-This version includes various fixes to support ``mixer.py [fit1,test1,fit2,test2]`` (univariate and cross-trait) analyses.
+## [2.1.0] - 2024-09-25 - https://github.com/precimed/gsa-mixer
+
+This version includes various fixes to support ``mixer.py [fit1,test1,fit2,test2]`` (univariate and cross-trait) analyses, plus a few new experimental options.
 
 ### Added
 
@@ -16,15 +18,14 @@ This version includes various fixes to support ``mixer.py [fit1,test1,fit2,test2
 
 ### Changed
 
-* The default settings for weighting SNPs in log-likelihood function had changed from random prunning (``--randprune-r2 0.1 --randprune-n 64``) to weighting by inverse residual LD score. The following set of switches should configure SNP weights to work equivalently to the previous version: ``--disable-inverse-ld-score-weights --randprune-r2 0.1 --randprune-n 64 --hardprune-maf 0``.
-This should be added on top of ``--extract 1000G.EUR.QC.prune_maf0p05_rand2M_r2p8.$REP.snp`` for ``fit1`` and ``fit2`` analyses.
+* The default settings for weighting SNPs in log-likelihood function in univariate (``fit1``, ``test1``) and cross-trait (``fit2``, ``test2``) analyses had changed from random prunning (``--randprune-r2 0.1 --randprune-n 64``) to weighting by inverse residual LD score, for consistency with GSA-MiXeR (``mixer.py plsa --gsa-base`` and ``--gsa-full``). In the cases where a maximum consistency with previous versions of univariate and cross-trait analyses is required, the following set of switches will configure SNP weights to work equivalently to the previous version: ``--disable-inverse-ld-score-weights --randprune-r2 0.1 --randprune-n 64 --hardprune-maf 0``. This should be added on top of ``--extract 1000G.EUR.QC.prune_maf0p05_rand2M_r2p8.$REP.snp`` for ``fit1`` and ``fit2`` analyses. For new analyses it's recommended to keep the new weighting scheme, which is now the default setting.
 * The inference scheme had a slight change due to new parametrization of the ``sig2_beta``; the old ``sig2_beta`` (an actual variance of causal effects) is now represented by the ratio of the ``sig2_beta`` over ``pi``. The reason for this re-parametrization is to facilitate inference of the parameters, so that trait's SNP-based heritability depends on the new ``sig2_beta``, but not on ``pi`` parameter. This implies a subtle change in the fit procedure (namely in ``diffevo`` and ``diffevo-fast`` steps of the ``fit1``), where the range of ``sig2_beta`` parameter is calibrated to search for trait's heritability between ``1e-5 <= h2 <= 10.0``.
 * Old ``<out>.json`` files produced by previous versions of the MiXeR software will no longer work with ``MiXeR v2.0.0`` and later versions, as ``.json`` serialization includes many internal changes (e.g. ``UnivariateParams`` class was replaced with``AnnotUnivariateParams`` class).
 
 ### Fixed
 
 * ``mixer_figures.py combine`` analysis applied to the output of ``mixer_figures.py test1`` will now also combine ``qqplot_bins`` sections of the ``json``; after this fix the subsequent ``mixer_figures.py one`` command will also produced a binned 3x3 figure with QQ plots
-- [CHANGELOG.md](CHANGELOG.md) (this file) was greatly improed to cover full development history of the MiXeR and GSA-MiXeR packages.
+* [CHANGELOG.md](CHANGELOG.md) (this file) was greatly improed to cover full development history of the MiXeR and GSA-MiXeR packages.
 
 ### Experimental options (limited support)
 
@@ -37,23 +38,23 @@ This should be added on top of ``--extract 1000G.EUR.QC.prune_maf0p05_rand2M_r2p
 
 ### Added
 
-- add [CHANGELOG.md](CHANGELOG.md) (this file) describing changes to this project
-- #15 ``mixer.py --help`` and ``mixer.py --version`` flags
-- #3 implement Docker and Singularity builds via github actions; update [README.md](README.md) with new installation procedure
-- [scripts/process_gsa_mixer_output.py](scripts/process_gsa_mixer_output.py) for formatting GSA-MiXeR results, together with sample input and output files for this script in [out_example/](out_example/) folder
+* add [CHANGELOG.md](CHANGELOG.md) (this file) describing changes to this project
+* #15 ``mixer.py --help`` and ``mixer.py --version`` flags
+* #3 implement Docker and Singularity builds via github actions; update [README.md](README.md) with new installation procedure
+* [scripts/process_gsa_mixer_output.py](scripts/process_gsa_mixer_output.py) for formatting GSA-MiXeR results, together with sample input and output files for this script in [out_example/](out_example/) folder
 
 ### Changed
 
-- Replace HRC with 1kG EUR reference panel in [README.md](README.md) and [scripts/GSA_MIXER.job](scripts/GSA_MIXER.job) instructions
+* Replace HRC with 1kG EUR reference panel in [README.md](README.md) and [scripts/GSA_MIXER.job](scripts/GSA_MIXER.job) instructions
 
 ### Fixed
 
-- #4 add missing ``utils_obsolete.py`` file
-- #6 #7 #8 #9 #10 address incomplete or inconsistent instructions in [README.md](README.md) file
+* #4 add missing ``utils_obsolete.py`` file
+* #6 #7 #8 #9 #10 address incomplete or inconsistent instructions in [README.md](README.md) file
 
 ### Removed
 
-- ``scripts/MAGMA.job`` is removed; instructions to run MAGMA are now part of [scripts/GSA_MIXER.job](scripts/GSA_MIXER.job)
+* ``scripts/MAGMA.job`` is removed; instructions to run MAGMA are now part of [scripts/GSA_MIXER.job](scripts/GSA_MIXER.job)
 
 ## [1.0.0] - 2024-02-03 - https://github.com/precimed/gsa-mixer
 
