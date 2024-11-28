@@ -645,7 +645,7 @@ def apply_univariate_fit_sequence(args, libbgmg, fit_sequence, init_params=None,
             parametrization = UnivariateParametrization_natural_axis(params=params, lib=libbgmg, trait=trait)
 
             h2_calibration = params.copy(pi=1.0, sig2_beta=1.0, sig2_zeroA=1.0).find_h2()
-            h2_min = 1e-5; h2_max = 1e1
+            h2_min = 1e-4; h2_max = 1
             sig2_beta_min = h2_min / h2_calibration
             sig2_beta_max = h2_max / h2_calibration
             totalhet = float(2.0 * np.dot(libbgmg._mafvec, 1.0 - libbgmg._mafvec))

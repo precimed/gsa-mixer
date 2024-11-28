@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - https://github.com/precimed/gsa-mixer
 
+### Changed
+
+* reduce search space in 'mixer.py fit1 diffevo-fast'
+
 ## [2.1.0] - 2024-09-25 - https://github.com/precimed/gsa-mixer
 
 This version includes various fixes to support ``mixer.py [fit1,test1,fit2,test2]`` (univariate and cross-trait) analyses, plus a few new experimental options.
