@@ -2,7 +2,7 @@
 set -euo pipefail
 
 apt-get update && apt-get install -y --no-install-recommends apt-utils=2.0.10
-apt-get update && apt-get install -y --no-install-recommends ca-certificates=20230311ubuntu0.20.04.1 && \
+apt-get update && apt-get install -y --no-install-recommends ca-certificates=20240203~20.04.1 && \
    update-ca-certificates
 
 # (!) Keep the list below sorted (!)
@@ -36,7 +36,7 @@ apt-get update && apt-get install -y --no-install-recommends \
    tar=1.30+dfsg-7ubuntu0.20.04.4 \
    tofrodos=1.7.13+ds-4 \
    unzip=6.0-25ubuntu1.1 \
-   vim=2:8.1.2269-1ubuntu5.24 \
+   vim=2:8.1.2269-1ubuntu5.29 \
    wget=1.20.3-1ubuntu2.1 \
    zlib1g-dev=1:1.2.11.dfsg-2ubuntu1.5 \
    && \
