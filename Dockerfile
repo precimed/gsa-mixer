@@ -72,7 +72,7 @@ RUN chmod +x /tmp/install_magma.sh
 RUN bash /tmp/install_magma.sh
 
 WORKDIR /tools
-RUN wget hhttps://precimed.s3.eu-west-1.amazonaws.com/gsa-mixer/boost_1_69_0.tar.gz && tar -xzvf boost_1_69_0.tar.gz 
+RUN wget https://precimed.s3.eu-west-1.amazonaws.com/gsa-mixer/boost_1_69_0.tar.gz && tar -xzvf boost_1_69_0.tar.gz 
 RUN cd boost_1_69_0 && ./bootstrap.sh --with-libraries=program_options,filesystem,system,date_time && ./b2 --clean && ./b2 --j12 -a
 
 WORKDIR /tools/mixer
