@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - https://github.com/precimed/gsa-mixer
 
+## [2.1.1] - 2024-09-25 - https://github.com/precimed/gsa-mixer
+
 ### Changed
 
 * reduce search space in 'mixer.py fit1 diffevo-fast'
