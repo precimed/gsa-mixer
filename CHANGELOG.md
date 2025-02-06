@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - https://github.com/precimed/gsa-mixer
 
-## [2.1.1] - 2024-09-25 - https://github.com/precimed/gsa-mixer
+### Added
+
+* ``scripts/MIXER.job`` script with instructions reproducing univariate and bivariate MiXeR v1.3 analyses.
+
+## [2.1.1] - 2025-02-05 - https://github.com/precimed/gsa-mixer
 
 ### Changed
 
@@ -24,7 +28,7 @@ This version includes various fixes to support ``mixer.py [fit1,test1,fit2,test2
 
 ### Changed
 
-* The default settings for weighting SNPs in log-likelihood function in univariate (``fit1``, ``test1``) and cross-trait (``fit2``, ``test2``) analyses had changed from random prunning (``--randprune-r2 0.1 --randprune-n 64``) to weighting by inverse residual LD score, for consistency with GSA-MiXeR (``mixer.py plsa --gsa-base`` and ``--gsa-full``). In the cases where a maximum consistency with previous versions of univariate and cross-trait analyses is required, the following set of switches will configure SNP weights to work equivalently to the previous version: ``--disable-inverse-ld-score-weights --randprune-r2 0.1 --randprune-n 64 --hardprune-maf 0``. This should be added on top of ``--extract 1000G.EUR.QC.prune_maf0p05_rand2M_r2p8.$REP.snp`` for ``fit1`` and ``fit2`` analyses. For new analyses it's recommended to keep the new weighting scheme, which is now the default setting.
+* The default settings for weighting SNPs in log-likelihood function in univariate (``fit1``, ``test1``) and cross-trait (``fit2``, ``test2``) analyses had changed from random prunning (``--randprune-r2 0.1 --randprune-n 64``) to weighting by inverse residual LD score, for consistency with GSA-MiXeR (``mixer.py plsa --gsa-base`` and ``--gsa-full``). In the cases where a maximum consistency with previous versions of univariate and cross-trait analyses is required, the following set of switches will configure SNP weights to work equivalently to the previous version: ``--disable-inverse-ld-score-weights --randprune-r2 0.1 --randprune-n 64 --hardprune-maf 0``. This should be added on top of ``--extract 1000G.EUR.QC.prune_maf0p05_rand2M_r2p8.$REP.snps`` for ``fit1`` and ``fit2`` analyses. For new analyses it's recommended to keep the new weighting scheme, which is now the default setting.
 * The inference scheme had a slight change due to new parametrization of the ``sig2_beta``; the old ``sig2_beta`` (an actual variance of causal effects) is now represented by the ratio of the ``sig2_beta`` over ``pi``. The reason for this re-parametrization is to facilitate inference of the parameters, so that trait's SNP-based heritability depends on the new ``sig2_beta``, but not on ``pi`` parameter. This implies a subtle change in the fit procedure (namely in ``diffevo`` and ``diffevo-fast`` steps of the ``fit1``), where the range of ``sig2_beta`` parameter is calibrated to search for trait's heritability between ``1e-5 <= h2 <= 10.0``.
 * Old ``<out>.json`` files produced by previous versions of the MiXeR software will no longer work with ``MiXeR v2.0.0`` and later versions, as ``.json`` serialization includes many internal changes (e.g. ``UnivariateParams`` class was replaced with``AnnotUnivariateParams`` class).
 
