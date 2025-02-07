@@ -25,8 +25,6 @@ export COMMON_FLAGS="${COMMON_FLAGS} --threads ${SLURM_CPUS_PER_TASK}"
 export COMMON_FLAGS="${COMMON_FLAGS} --use-complete-tag-indices"
 export COMMON_FLAGS="${COMMON_FLAGS} --exclude-ranges MHC"
 export COMMON_FLAGS="${COMMON_FLAGS} --disable-inverse-ld-score-weights --randprune-r2 0.1 --randprune-n 64 --hardprune-maf 0"
-export COMMONG_FLAGS_U="--z1max 9.336"
-export COMMONG_FLAGS_B="--z1max 9.336 --z2max 9.336"
 
 export PYTHON="singularity exec --home=pwd:/home $GITHUB/precimed/gsa-mixer/singularity/gsa-mixer.sif python"
 export MIXER_PY="$PYTHON         /tools/mixer/precimed/mixer.py"
@@ -35,13 +33,13 @@ export MIXER_FIGURES_PY="$PYTHON /tools/mixer/precimed/mixer_figures.py"
 export TRAIT1=SCZ
 export TRAIT2=INT
 
-$PYTHON /tools/mixer/precimed/mixer.py fit1 $COMMON_FLAGS $COMMONG_FLAGS_U $EXTRACT  --trait1-file ${TRAIT1}.sumstats.gz --out ${TRAIT1}.fit.$REP
-$PYTHON /tools/mixer/precimed/mixer.py fit1 $COMMON_FLAGS $COMMONG_FLAGS_U $EXTRACT  --trait1-file ${TRAIT2}.sumstats.gz --out ${TRAIT2}.fit.$REP
-$PYTHON /tools/mixer/precimed/mixer.py fit2 $COMMON_FLAGS $COMMONG_FLAGS_B $EXTRACT  --trait1-file ${TRAIT1}.sumstats.gz --trait2-file ${TRAIT2}.sumstats.gz --trait1-params ${TRAIT1}.fit.$REP.json --trait2-params ${TRAIT2}.fit.$REP.json --out ${TRAIT1}_vs_${TRAIT2}.fit.$REP
+$PYTHON /tools/mixer/precimed/mixer.py fit1 $COMMON_FLAGS $EXTRACT  --trait1-file ${TRAIT1}.sumstats.gz --out ${TRAIT1}.fit.$REP
+$PYTHON /tools/mixer/precimed/mixer.py fit1 $COMMON_FLAGS $EXTRACT  --trait1-file ${TRAIT2}.sumstats.gz --out ${TRAIT2}.fit.$REP
+$PYTHON /tools/mixer/precimed/mixer.py fit2 $COMMON_FLAGS $EXTRACT  --trait1-file ${TRAIT1}.sumstats.gz --trait2-file ${TRAIT2}.sumstats.gz --trait1-params ${TRAIT1}.fit.$REP.json --trait2-params ${TRAIT2}.fit.$REP.json --out ${TRAIT1}_vs_${TRAIT2}.fit.$REP
 
-    $PYTHON /tools/mixer/precimed/mixer.py test1 $COMMON_FLAGS $COMMONG_FLAGS_U --trait1-file ${TRAIT1}.sumstats.gz --load-params ${TRAIT1}.fit.$REP.json --out ${TRAIT1}.test.$REP
-$PYTHON /tools/mixer/precimed/mixer.py test1 $COMMON_FLAGS $COMMONG_FLAGS_U --trait1-file ${TRAIT2}.sumstats.gz --load-params ${TRAIT2}.fit.$REP.json --out ${TRAIT2}.test.$REP
-$PYTHON /tools/mixer/precimed/mixer.py test2 $COMMON_FLAGS $COMMONG_FLAGS_B --trait1-file ${TRAIT1}.sumstats.gz --trait2-file ${TRAIT2}.sumstats.gz --load-params ${TRAIT1}_vs_${TRAIT2}.fit.$REP.json --out ${TRAIT1}_vs_${TRAIT2}.test.$REP
+$PYTHON /tools/mixer/precimed/mixer.py test1 $COMMON_FLAGS --trait1-file ${TRAIT1}.sumstats.gz --load-params ${TRAIT1}.fit.$REP.json --out ${TRAIT1}.test.$REP
+$PYTHON /tools/mixer/precimed/mixer.py test1 $COMMON_FLAGS --trait1-file ${TRAIT2}.sumstats.gz --load-params ${TRAIT2}.fit.$REP.json --out ${TRAIT2}.test.$REP
+$PYTHON /tools/mixer/precimed/mixer.py test2 $COMMON_FLAGS --trait1-file ${TRAIT1}.sumstats.gz --trait2-file ${TRAIT2}.sumstats.gz --load-params ${TRAIT1}_vs_${TRAIT2}.fit.$REP.json --out ${TRAIT1}_vs_${TRAIT2}.test.$REP
 
 # After all runs complete, run the following commands for post-processing of the output files
 # if [[ "${SLURM_ARRAY_TASK_ID}" -eq 1 ]]; then
