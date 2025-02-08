@@ -9,7 +9,7 @@ For a real-world application of the GSA-MiXeR you will need to perform the follo
 * [Download pre-generated LD matrix and other reference files](#download-ld-matrix-and-other-reference-files) based on 1000 Genomes European population
 * [Perform GSA-MiXeR and MAGMA analyses](#perform-gsa-mixer-and-magma-analyses) using modified version of the [GSA_MIXER.job](scripts/GSA_MIXER.job) script; optionally, re-format the results using [process_gsa_mixer_output.py](scripts/process_gsa_mixer_output.py) script.
 
-GSA-MiXeR software also supports univariate and bivariate (cross-trait) MiXeR analyses from [Frei et al, 2019](https://www.nature.com/articles/s41467-019-10310-0). This replaces previous ``MiXeR v1.3`` software package (https://github.com/precimed/mixer) and its pre-built singularity container (https://github.com/comorment/mixer). The [scripts/MIXER.job](scripts/MIXER.job) script give an example of performing univariate and bivariate analyses using GSA-MiXeR software.
+GSA-MiXeR software also supports univariate and bivariate (cross-trait) MiXeR analyses from [Frei et al, 2019](https://www.nature.com/articles/s41467-019-10310-0). This replaces previous ``MiXeR v1.3`` software package (https://github.com/precimed/mixer) and its pre-built singularity container (https://github.com/comorment/mixer). The [scripts/MIXER.job](scripts/MIXER.job) script give an example of performing univariate and bivariate analyses using GSA-MiXeR software, inline with procedure previously employed by ``MiXeR v1.3``.
 
 For further information refer to [Command-line reference](#command-line-reference) section.
 We also provide instructions on how to [generate your own LD reference](#generate-ld-reference) files, for example using UKB or HRC genotypes.
