@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * ``scripts/MIXER.job`` script with instructions reproducing univariate and bivariate MiXeR v1.3 analyses.
 
+### Changed
+
+* standardize location of ``gsa-mixer.sif`` across scripts
+
 ## [2.1.1] - 2025-02-05 - https://github.com/precimed/gsa-mixer
 
 ### Changed

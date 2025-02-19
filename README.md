@@ -252,7 +252,7 @@ GSA-MiXeR analysis takes around 6 to 12 hours using 8-core machine, and utilize 
 ### Define data location, and singularity-related variables
 ```
 export GITHUB=/cluster/projects/nn9114k/github
-export MIXER_SIF=${GITHUB}/precimed/gsa-mixer/containers/singularity/gsa-mixer.sif
+export MIXER_SIF=${GITHUB}/precimed/gsa-mixer/containers/latest/gsa-mixer.sif
 export SUMSTATS_FOLDER=/cluster/projects/nn9114k/oleksanf/gsa-mixer/sumstats
 export SUMSTATS_FILE=PGC_SCZ_0518_EUR
 export OUT_FOLDER=/cluster/projects/nn9114k/oleksanf/gsa-mixer/out2
@@ -575,7 +575,7 @@ If you generate custom reference for GSA-MiXeR, this step can be skiped.
 #SBATCH --array=1-20
 
 export REP=${SLURM_ARRAY_TASK_ID}
-export MIXER_SIF=mixer.sif
+export MIXER_SIF=gsa-mixer.sif
 export MIXER_PY="singularity exec --home pwd:/home ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
 
 ${MIXER_PY} snps --bim-file chr${CHR} --ld-file chr@ --chr2use 1-22 --maf 0.05 --subset 3000000 --seed $REP --out rep${REP}.snps
