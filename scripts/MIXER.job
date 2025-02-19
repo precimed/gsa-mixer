@@ -9,7 +9,7 @@
 module purge
 test $SCRATCH && module load singularity/3.7.1 
 
-#export GITHUB=/ess/pp33/cluster/github
+#export GITHUB=/ess/p33/data/durable/s3-api/github
 export GITHUB=/ess/p697/data/durable/s3-api/github
 
 export APPTAINER_BIND="$GITHUB/comorment/mixer/reference:/REF"
@@ -26,7 +26,7 @@ export COMMON_FLAGS="${COMMON_FLAGS} --use-complete-tag-indices"
 export COMMON_FLAGS="${COMMON_FLAGS} --exclude-ranges MHC"
 export COMMON_FLAGS="${COMMON_FLAGS} --disable-inverse-ld-score-weights --randprune-r2 0.1 --randprune-n 64 --hardprune-maf 0"
 
-export PYTHON="singularity exec --home=pwd:/home $GITHUB/precimed/gsa-mixer/singularity/gsa-mixer.sif python"
+export PYTHON="singularity exec --home=pwd:/home $GITHUB/precimed/gsa-mixer/containers/latest/gsa-mixer.sif python"
 export MIXER_PY="$PYTHON         /tools/mixer/precimed/mixer.py"
 export MIXER_FIGURES_PY="$PYTHON /tools/mixer/precimed/mixer_figures.py"
 

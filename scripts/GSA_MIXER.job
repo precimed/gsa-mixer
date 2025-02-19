@@ -25,7 +25,7 @@ test $SCRATCH && module load singularity/3.7.1
 # custom path & settings - SAGA
 #export THREADS=40
 #export GITHUB=/cluster/projects/nn9114k/github
-#export MIXER_SIF=${GITHUB}/precimed/gsa-mixer/containers/singularity/gsa-mixer.sif
+#export MIXER_SIF=${GITHUB}/precimed/gsa-mixer/containers/latest/gsa-mixer.sif
 #export SUMSTATS_FOLDER=/cluster/projects/nn9114k/oleksanf/gsa-mixer/sumstats
 #export SUMSTATS_FILE=PGC_SCZ_0518_EUR
 #export OUT_FOLDER=/cluster/projects/nn9114k/oleksanf/gsa-mixer/out2
@@ -34,7 +34,7 @@ test $SCRATCH && module load singularity/3.7.1
 # custom path & settings - local laptop
 export THREADS=6
 export GITHUB=/home/oleksanf/github
-export MIXER_SIF=${GITHUB}/precimed/gsa-mixer/containers/singularity/gsa-mixer.sif
+export MIXER_SIF=${GITHUB}/precimed/gsa-mixer/containers/latest/gsa-mixer.sif
 export SUMSTATS_FOLDER=${GITHUB}/precimed/gsa-mixer/sumstats
 export SUMSTATS_FILE=PGC_SCZ_0518_EUR
 export OUT_FOLDER=${GITHUB}/precimed/gsa-mixer/out
