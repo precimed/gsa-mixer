@@ -1164,7 +1164,7 @@ def calc_bivariate_pdf(libbgmg, params, downsample_factor):
 
 def calc_bivariate_qq(libbgmg, zgrid, pdf):
     zgrid_fine = np.arange(-25, 25.00001, 0.005)   # project to a finer grid
-    pdf_fine=scipy.interpolate.interp2d(zgrid, zgrid, pdf)(zgrid_fine, zgrid_fine)
+    pdf_fine=scipy.interpolate.RectBivariateSpline(zgrid, zgrid, pdf)(zgrid_fine, zgrid_fine,grid=True)
     pthresh_vec = [1, 0.1, 0.01, 0.001]
     zthresh_vec = -scipy.stats.norm.ppf(np.array(pthresh_vec)/2)
 
