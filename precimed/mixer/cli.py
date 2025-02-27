@@ -346,7 +346,7 @@ def parser_add_arguments(parser, func, analysis_type):
         parser.add_argument("--annot-file", type=str, default=None, help="(optional) path to binary annotations in LD score regression format, i.e. <path>/baseline.@.annot.gz for fitting enrichment model model. This must include the first column with all ones ('base' annotation category covering the entire genome).")
         parser.add_argument("--go-file", type=str, default=None, help="(optional) path to GO antology file for fitting enrichment model model. The format is described in the documentation. 'base' category that covers entire genome will be added automatically.")
         parser.add_argument("--go-extend-bp", type=int, default=GO_EXTEND_BP_DEFAULT, help="extends each gene by this many base pairs, defining a symmetric window up and downstream (default: %(default)s)")
-        parser.add_argument('--nckoef', default=None, type=float, help="(optional) coefficient translating total number of causal variants to the number of causal variants explaining 90% of trait's heritability; by default this is estimated from the data (up until MiXeR v1.3 this was set to 0.319)")
+        parser.add_argument('--nckoef', default=None, type=float, help="(optional) coefficient translating total number of causal variants to the number of causal variants explaining 90%% of trait's heritability; by default this is estimated from the data (up until MiXeR v1.3 this was set to 0.319)")
 
         if analysis_type in ['fit1', 'test1']:
             parser.add_argument('--cubature-rel-error', type=float, default=1e-5, help="relative error for cubature stop criteria (default: %(default)s); applies to 'convolve' cost calculator")
