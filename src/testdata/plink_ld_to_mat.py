@@ -10,10 +10,10 @@ if __name__ == '__main__':
 	print('args: {}'.format(sys.argv[1:]))
 	
 	print('reading {}...'.format(in_name))
-	df=pd.read_table(in_name,delim_whitespace=True)
+	df=pd.read_table(in_name,sep=r'\s+')
 
 	print('reading {}...'.format(ref_name))
-	ref = pd.read_table(ref_name,delim_whitespace=True)
+	ref = pd.read_table(ref_name,sep=r'\s+')
 	ref['index_A']=ref.index; ref['index_B']=ref.index; ref['SNP_A']=ref['SNP']; ref['SNP_B']=ref['SNP']
 
 	print('merging 1...')

@@ -28,6 +28,7 @@ from .utils import UnivariateParametrization_constPI_constSIG2BETA              
 from .utils import UnivariateParametrization_constPI		                         # infinitesimal
 from .utils import BivariateParametrization_constUNIVARIATE_constRHOBETA_constPI     # inflation
 from .utils import BivariateParametrization_constUNIVARIATE_natural_axis             # diffevo, neldermead
+from .utils import BivariateParametrization_pi1_pi2_pi12                             # neldermead-pi
 from .utils import BivariateParametrization_constUNIVARIATE_constRG_constRHOZERO     # brute1, brent1
 from .utils import BivariateParametrization_constUNIVARIATE_infinitesimal            # infinitesimal
 from .utils import AnnotUnivariateParametrization
@@ -157,8 +158,9 @@ def fix_and_validate_args(args):
     check_input_file(args, 'load-params-file')
 
     if ('analysis' in args) and (args.analysis == 'fit2'):
-        if not args.trait1_params_file: raise ValueError('--trait1-params-file is required ')
-        if not args.trait2_params_file: raise ValueError('--trait2-params-file is required ')
+        if not args.load_params_file:
+            if not args.trait1_params_file: raise ValueError('--trait1-params-file or --load-params-file is required ')
+            if not args.trait2_params_file: raise ValueError('--trait2-params-file or --load-params-file is required ')
 
     arg_dict = vars(args)
     for chri in arg_dict["chr2use"]:
@@ -277,8 +279,8 @@ def parser_add_arguments(parser, func, analysis_type):
         parser.add_argument('--randprune-r2', type=float, default=0.1, help="threshold for random pruning (default: %(default)s)")
         parser.add_argument('--disable-inverse-ld-score-weights', default=False, action="store_true", help="a flag allowing to disable weighting by inverse ld score")
 
-        parser.add_argument('--weights-file', type=str, default=('auto' if (analysis_type in ['fit1', 'plsa']) else 'none'), help="file to load weights (default: %(default)s); 'auto' takes weights file that is associated with --load-params argument (if it is provided); 'none' disables 'auto' feature; otherwise this argument must point to a <out>.weights produced by a previous mixer.py analysis")
-        parser.add_argument('--save-weights', default=(analysis_type == 'plsa'), action="store_true", help="a flag allowing to save weights set via--hardprune and --randprune options; does not have effect is weights are loaded from --weights-file")
+        parser.add_argument('--weights-file', type=str, default=('auto' if (analysis_type in ['fit1', 'fit2', 'plsa']) else 'none'), help="file to load weights (default: %(default)s); 'auto' takes weights file that is associated with --load-params argument (if it is provided); 'none' disables 'auto' feature; otherwise this argument must point to a <out>.weights produced by a previous mixer.py analysis")
+        parser.add_argument('--save-weights', default=False, action="store_true", help="a flag allowing to save weights set via --hardprune and --randprune options")
 
         parser.add_argument('--seed', type=np.uint32, default=None, help="random seed (default: %(default)s).")
         parser.add_argument('--r2min', type=float, default=0.0, help=argparse.SUPPRESS) # help="r2 values below this threshold will contribute via infinitesimal model")
@@ -356,27 +358,25 @@ def parser_add_arguments(parser, func, analysis_type):
         if analysis_type == 'fit1':
             parser.add_argument('--analysis', type=str, default='fit1', help=argparse.SUPPRESS, choices=['fit1', 'fit2', 'test1', 'test2'])
             parser.add_argument('--fit-sequence', type=str, default=['diffevo-fast', 'neldermead'], nargs='+', help=argparse.SUPPRESS, choices=['diffevo', 'diffevo-fast', 'neldermead', 'neldermead-fast', 'infinitesimal'])
-            parser.add_argument('--load-params-file', type=str, default=None, help="params of the fitted model, for example from 'plsa' model (optional argument)")
         elif analysis_type == 'fit2':
             parser.add_argument('--analysis', type=str, default='fit2', help=argparse.SUPPRESS, choices=['fit1', 'fit2', 'test1', 'test2'])
-            parser.add_argument('--fit-sequence', type=str, default=['diffevo-fast', 'neldermead-fast', 'brute1', 'brent1'], nargs='+', help=argparse.SUPPRESS, choices=['diffevo-fast', 'neldermead-fast', 'brute1', 'brute1-fast', 'brent1', 'brent1-fast', 'infinitesimal'])
+            parser.add_argument('--fit-sequence', type=str, default=['diffevo-fast', 'neldermead-fast', 'brute1', 'brent1'], nargs='+', help=argparse.SUPPRESS, choices=['diffevo-fast', 'neldermead-fast', 'neldermead-pi', 'neldermead-pi-fast', 'brute1', 'brute1-fast', 'brent1', 'brent1-fast', 'infinitesimal'])
             parser.add_argument('--trait1-params-file', type=str, default=None, help="univariate params for the first trait (required argument); applies to 'fit2' analysis only")
             parser.add_argument('--trait2-params-file', type=str, default=None, help="univariate params for the second trait (required argument); applies to 'fit2' analysis only")
         elif analysis_type == 'test1':
             parser.add_argument('--analysis', type=str, default='test1', help=argparse.SUPPRESS, choices=['fit1', 'fit2', 'test1', 'test2'])
-            parser.add_argument('--fit-sequence', type=str, default=['load', 'inflation'], nargs='+', help=argparse.SUPPRESS, choices=['load', 'inflation'])
+            parser.add_argument('--fit-sequence', type=str, default=['inflation'], nargs='+', help=argparse.SUPPRESS, choices=['inflation'])
         elif analysis_type == 'test2':
             parser.add_argument('--analysis', type=str, default='test2', help=argparse.SUPPRESS, choices=['fit1', 'fit2', 'test1', 'test2'])
-            parser.add_argument('--fit-sequence', type=str, default=['load', 'inflation'], nargs='+', help=argparse.SUPPRESS, choices=['load', 'inflation'])
+            parser.add_argument('--fit-sequence', type=str, default=['inflation'], nargs='+', help=argparse.SUPPRESS, choices=['inflation'])
         else:
             raise ValueError('internal error: invalid combination of do_fit and num_traits')
 
-        if analysis_type in ['test1', 'test2']:
-            parser.add_argument('--load-params-file', type=str, default=None, help="params of the fitted model (required argument); applies to 'test1' and 'test2' analyses")
+        if analysis_type in ['fit1', 'fit2', 'test1', 'test2']:
+            parser.add_argument('--load-params-file', type=str, default=None, help="params of the fitted model (required argument for test1 and test2, otherwise optional);")
 
         # all arguments below marked with argparse.SUPRESS option are internal and not recommended for a general use.
         # Valid options for --fit-sequence (remember to combine them in a sequence that makes sence):
-        #       'load' reads previosly fitted parameters from a file (--load-params-file);
         #       'diffevo' performs a single iteration of differential evolution, which is the right way to setup an initial approximation;
         #       'neldermead' applies Nelder-Mead downhill simplex search;
         #       'brute1' applies only to bivariate optimization; it performs brute-force for one-dimentional optimization, searching optimal pi12 value constrained on genetic correlation (rg) and intercept (rho0);
@@ -631,16 +631,17 @@ def apply_plsa_univariate_fit_sequence(args, params, results, libbgmg_vec, trait
 def apply_univariate_fit_sequence(args, libbgmg, fit_sequence, init_params=None, trait=1):
     params=init_params if (init_params is not None) else AnnotUnivariateParams(pi=1.0, libbgmg=libbgmg, s=0, l=0, sig2_zeroL=0)
     optimize_result_sequence=[]
+
+    if (not init_params) and args.load_params_file:
+        libbgmg.log_message("Loading {}...".format(args.load_params_file))
+        params = load_params_file(args.load_params_file, libbgmg, args)
+        libbgmg.log_message("Done, {}".format(params))
+
     for fit_type in fit_sequence:
+        optimize_result = None
         libbgmg.log_message("fit_type=={}...".format(fit_type))
 
-        if fit_type == 'load':
-            libbgmg.log_message("Loading {}...".format(args.load_params_file))
-            params = load_params_file(args.load_params_file, libbgmg, args)
-            optimize_result = {}
-            libbgmg.log_message("fit_type==load: Done, {}".format(params))
-
-        elif (fit_type == 'diffevo') or fit_type == ('diffevo-fast'):
+        if (fit_type == 'diffevo') or fit_type == ('diffevo-fast'):
             libbgmg.set_option('cost_calculator', _cost_calculator_convolve if (fit_type == 'diffevo') else _cost_calculator_gaussian)
             parametrization = UnivariateParametrization_natural_axis(params=params, lib=libbgmg, trait=trait)
 
@@ -703,28 +704,25 @@ def apply_univariate_fit_sequence(args, libbgmg, fit_sequence, init_params=None,
     return params, optimize_result_sequence
 
 def apply_bivariate_fit_sequence(args, libbgmg, fit_sequence):
-    if args.analysis == 'fit2':
+    params = None; optimize_result_sequence = []
+
+    if args.load_params_file:
+        libbgmg.log_message("Loading initial bivariate params {}...".format(args.load_params_file))
+        params = load_params_file(args.load_params_file, libbgmg, args)
+        libbgmg.log_message("Done, {}".format(params))
+        params1 = params._params1
+        params2 = params._params2
+    else:
         libbgmg.log_message("Loading univariate constrains for bivariate analysis...")
         params1 = load_params_file(args.trait1_params_file, libbgmg, args)
         params2 = load_params_file(args.trait2_params_file, libbgmg, args)
         libbgmg.log_message("trait1: {}".format(params1))
         libbgmg.log_message("trait2: {}".format(params2))
 
-    params = None; optimize_result_sequence = []
     for fit_type in fit_sequence:
+        optimize_result = None
         libbgmg.log_message("fit_type=={}...".format(fit_type))
-
-        if fit_type == 'load':
-            libbgmg.log_message("Loading {}...".format(args.load_params_file))
-            params = load_params_file(args.load_params_file, libbgmg, args)
-            params1 = params._params1
-            params2 = params._params2
-            libbgmg.log_message("fit_type==load... trait1 params: {}".format(params1))            
-            libbgmg.log_message("fit_type==load... trait2 params: {}".format(params2))    
-            libbgmg.log_message("fit_type=={} done ({})".format(fit_type, params))
-            continue
-
-        elif fit_type == 'inflation':
+        if fit_type == 'inflation':
             if params == None: raise(RuntimeError('params == None, unable to proceed with "{}" fit'.format(fit_type)))
             params1, ors1 = apply_univariate_fit_sequence(args, libbgmg, ['inflation'], init_params=params1, trait=1)
             optimize_result_sequence.extend(ors1)
@@ -762,6 +760,16 @@ def apply_bivariate_fit_sequence(args, libbgmg, fit_sequence):
             optimize_result = scipy.optimize.minimize(lambda x: parametrization.calc_cost(x), parametrization.params_to_vec(params),
                 method='Nelder-Mead', options={'maxiter':1200, 'fatol':1e-7, 'xatol':1e-4, 'adaptive':True})
             params = parametrization.vec_to_params(optimize_result.x)
+
+        elif (fit_type == 'neldermead-pi') or (fit_type == 'neldermead-pi-fast'):
+            if params == None: raise(RuntimeError('params == None, unable to proceed with "{}" fit'.format(fit_type)))
+            libbgmg.set_option('cost_calculator', _cost_calculator_sampling if (fit_type == 'neldermead-pi') else _cost_calculator_gaussian)
+            cost_prior_to_optimization = params.cost(libbgmg)
+            parametrization = BivariateParametrization_pi1_pi2_pi12(params=params, lib=libbgmg)
+            optimize_result = scipy.optimize.minimize(lambda x: parametrization.calc_cost(x), parametrization.params_to_vec(params),
+                method='Nelder-Mead', options={'maxiter':1200, 'fatol':1e-7, 'xatol':1e-4, 'adaptive':True})
+            params = parametrization.vec_to_params(optimize_result.x)
+            optimize_result['cost-prior-to-optimization'] =cost_prior_to_optimization
 
         elif (fit_type == 'brute1') or (fit_type == 'brute1-fast'):
             # brute1 optimization intentionally forgets previously fitted value of params._pi12, to avoid being stuck in a local minimum.
@@ -820,9 +828,10 @@ def apply_bivariate_fit_sequence(args, libbgmg, fit_sequence):
 
         libbgmg.set_option('cost_calculator', _cost_calculator_gaussian)
         # cost_df=9 --- nine free parameters (incl. univariate)
-        enhance_optimize_result(optimize_result, cost_df=9, cost_n=np.sum(libbgmg.weights), cost_fast=params.cost(libbgmg))
-        optimize_result['params']=_params_to_dict(params)   # params after optimization
-        optimize_result_sequence.append((fit_type, optimize_result))
+        if optimize_result:
+            enhance_optimize_result(optimize_result, cost_df=9, cost_n=np.sum(libbgmg.weights), cost_fast=params.cost(libbgmg))
+            optimize_result['params']=_params_to_dict(params)   # params after optimization
+            optimize_result_sequence.append((fit_type, optimize_result))
         libbgmg.log_message("fit_type=={} done ({}, {})".format(fit_type, params, optimize_result))
 
     if params == None: raise(RuntimeError('Empty --fit-sequence'))
@@ -1062,9 +1071,6 @@ def execute_fit1_or_test1_parser(args):
     df_weights = pd.DataFrame({'chrnumvec':libbgmg.chrnumvec, 'weights': tagvec_as_snpvec(libbgmg.weights, libbgmg.defvec)})
     results = init_results_struct(args, [libbgmg])
     results['analysis'] = 'univariate'
-
-    if (args.load_params_file is not None) and (args.fit_sequence[0] != 'load'):
-        args.fit_sequence = ['load'] + args.fit_sequence
 
     libbgmg.log_message('--fit-sequence: {}...'.format(args.fit_sequence))
 
@@ -1452,7 +1458,8 @@ def execute_plsa_parser(args):
         args.l_value = -0.25
         args.h2_init_calibration = 0.1
         args.se_samples = 0
-        libbgmg.log_message(f'apply --gsa-base settings (--fit {" ".join(args.fit)} --l-value {args.l_value} --h2-init-calibration {args.h2_init_calibration})')
+        args.save_weights = True
+        libbgmg.log_message(f'apply --gsa-base settings (--fit {" ".join(args.fit)} --l-value {args.l_value} --h2-init-calibration {args.h2_init_calibration}) --save-weights ')
 
     if args.gsa_full:
         args.fit = ['gene']
@@ -1731,7 +1738,7 @@ def execute_fixed_effects_parser(args):
     del bim['GP']
     bim.reset_index(inplace=True, drop=True)
 
-    causal_variants = pd.read_csv(args.causal_variants, delim_whitespace=True, header=None, names=['SNP', 'BETA'])
+    causal_variants = pd.read_csv(args.causal_variants, sep=r'\s+', header=None, names=['SNP', 'BETA'])
     causalbetavec = pd.merge(bim[['SNP']], causal_variants, on='SNP', how='left')[['BETA']].values
     causalbetavec[~np.isfinite(causalbetavec)] = 0
     

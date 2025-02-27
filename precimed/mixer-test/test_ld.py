@@ -8,11 +8,12 @@ from scipy.sparse import coo_matrix
 from precimed.mixer import libbgmg
 
 
+# py.test precimed/mixer-test/test_ld.py  -k test_ld
 def test_ld():
 
     ld=np.loadtxt('precimed/mixer-test/tiny/chr21qc.ld.gz'); r2=np.multiply(ld, ld); r4=np.multiply(r2, r2)
-    frq=pd.read_csv('precimed/mixer-test/tiny/chr21qc.frq', delim_whitespace=True)  # nsubj=100, nchr=200 => 3 digits precision is accurate
-    bim=pd.read_csv('precimed/mixer-test/tiny/chr21qc.bim', delim_whitespace=True, header=None, names='CHR SNP GP BP A1 A2'.split())
+    frq=pd.read_csv('precimed/mixer-test/tiny/chr21qc.frq', sep=r'\s+')  # nsubj=100, nchr=200 => 3 digits precision is accurate
+    bim=pd.read_csv('precimed/mixer-test/tiny/chr21qc.bim', sep=r'\s+', header=None, names='CHR SNP GP BP A1 A2'.split())
 
     lib=libbgmg.LibBgmg('src/build/lib/libbgmg.so', init_log='precimed/mixer-test/test.log', context_id=0, dispose=True)
     lib.defvec = bim['CHR'].notnull()

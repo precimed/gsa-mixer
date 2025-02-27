@@ -162,7 +162,29 @@ def test_fit2():
 --chr2use 21-22 --seed 123 --diffevo-fast-repeats 2 \
 --fit-sequence diffevo-fast neldermead-fast brute1-fast brent1-fast \
 --exclude-ranges chr21:20-21MB chr22:19100-19900KB \
+--save-weights \
 --out {data}/fit2
+"""
+    out = subprocess_run(call)
+    assert out.returncode == 0
+    assert os.path.exists(out_file)
+
+# py.test precimed/mixer-test/test_cli.py  -k test_fit2_region
+def test_fit2_region():
+    out_file = f'{data}/fit2_region.json'
+    if os.path.exists(out_file): os.remove(out_file)
+    call=f"""python precimed/mixer.py fit2 \
+--lib src/build/lib/libbgmg.so \
+--trait1-file {data}/trait1.sumstats.gz \
+--trait2-file {data}/trait2.sumstats.gz \
+--load-params-file {data}/fit2.json \
+--bim-file {data}/g1000_eur_hm3_chr@.bim \
+--ld-file {data}/g1000_eur_hm3_chr@.ld \
+--extract {data}/g1000_eur_hm3_chr@.snps \
+--exclude-ranges chr21:0-18MB chr21:19-300MB chr22:0-25MB chr22:26-300MB \
+--chr2use 21-22 --seed 123 \
+--fit-sequence neldermead-pi-fast \
+--out {data}/fit2_region
 """
     out = subprocess_run(call)
     assert out.returncode == 0

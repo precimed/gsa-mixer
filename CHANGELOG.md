@@ -10,10 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * ``scripts/MIXER.job`` script with instructions reproducing univariate and bivariate MiXeR v1.3 analyses.
+* ``mixer.py fit2 --fit-sequence neldermead-pi`` option for fitting regional bivariate models.
 
 ### Changed
 
 * standardize location of ``gsa-mixer.sif`` across scripts
+* use ``sep=r'\s+'`` instead of ``delim_whitespace=True`` in ``pandas.read_csv`` calls
 
 ## [2.1.1] - 2025-02-05 - https://github.com/precimed/gsa-mixer
 
@@ -86,8 +88,8 @@ Thsi is an initial release of GSA-MiXeR software, including the following change
   * new ``--allow-ambiguous-snps`` option allows to retain ambiguous SNPs for analysis (by default MiXeR still excludes them)
   * new ``--hardprune-maf``, ``--hardprune-r2``,  and ``--hardprune-subset`` options allow to exclude SNPs from fit procedure, offering a more convenient alternative to the ``--extract`` option used in the previous MiXeR version. ``--hardprune-subset`` selects random subset of SNPs of a certain size (as fraction of ``--bim-file`` SNPs when parameter is a float-point number between 0 and 1;, or as an absolute number of SNPs if parameter is an integer number above 1; this is done in a deterministic way, randomized based on the ``--seed`` argument); ``--hardprune-maf`` filters SNPs on minor allele frequency (allele frequencies are based on ``--ld-file``, i.e. from the genotype panel used to generate the LD reference); ``--hardprune-r2`` is used to randomly prune SNPs in high LD.
   * due to new default weighting scheme by inverse residual LD score a new flag ``--disable-inverse-ld-score-weights`` was added, allowing to disable inverse LD score weighting and thus restore previous behavior with weights set by random prunning; *residual LD score* means that LD score of each tag SNP is computed towards SNPs that have a well-defined z-score, and pass other filtering (``--extract``, ``--hardprune-maf``, etc).
-  * new ``--save-weights`` option allows to save ``<out>.weights`` file with per-SNP weights generated using ``hardprune-`` and ``randprune-`` options. By default weights are saved for ``plsa`` analysis.
-  * ``--weights-file`` loads weights  from a previously generated ``<out>.weights`` file. If weights are loaded, ``--save-weights`` argument is ignored. The default for ``plsa`` and ``fit1`` analysis is to use ``--weights-file auto`` which acts depending on ``--load-params-file``: if a previous params file is used, then the respective weights will be loaded. To overwrite ``--weights-file auto`` behavior set by default use ``--weights-file none``, which will disable loading weights. Whenever weights are not loaded, they are generated according to hardprune/randprune settings.
+  * new ``--save-weights`` option allows to save ``<out>.weights`` file with per-SNP weights generated using ``hardprune-`` and ``randprune-`` options. By default weights are saved for ``plsa --gsa-base`` analysis.
+  * ``--weights-file`` loads weights  from a previously generated ``<out>.weights`` file. If weights are loaded, ``--save-weights`` argument is ignored. The default for ``plsa``, ``fit1`` andd ``fit2`` analysis is to use ``--weights-file auto`` which acts depending on ``--load-params-file``: if a previous params file is used, then the respective weights will be loaded. To overwrite ``--weights-file auto`` behavior set by default use ``--weights-file none``, which will disable loading weights. Whenever weights are not loaded, they are generated according to hardprune/randprune settings.
 * ``--save-ldsc-reference`` now also exports the data in MATLAB format
 * new ``--make-snps-file`` option (available for ``plsa``, ``fit1``, ``test1``, ``fit2``, ``test2`` analyses) allows to output per-SNP posterior effect size estimates
 * new ``--use-complete-tag-indices``, ``--loadlib-file`` and ``--savelib-file`` options allows for faster loading of LD matrices

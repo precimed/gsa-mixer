@@ -247,7 +247,7 @@ def test_univariate_uncertainty():
 # py.test precimed/mixer/utils_test.py  -k test_bivariate_fit_sequence
 def test_bivariate_fit_sequence():
     libbgmg_mock = LibBgmgMock(num_snp=10, num_tag=5, make_weights=True)
-    args = collections.namedtuple('Args', ['diffevo_fast_repeats', 'seed', 'analysis', 'trait1_params_file', 'trait2_params_file'])._make((3, 123, 'fit2', get_params(libbgmg_mock), get_params(libbgmg_mock)))
+    args = collections.namedtuple('Args', ['diffevo_fast_repeats', 'seed', 'analysis', 'load_params_file', 'trait1_params_file', 'trait2_params_file'])._make((3, 123, 'fit2', None, get_params(libbgmg_mock), get_params(libbgmg_mock)))
     params, _, _, optimize_result_sequence = apply_bivariate_fit_sequence(args, libbgmg_mock, ['diffevo-fast', 'neldermead-fast', 'brute1', 'brent1'])
     #print(params, optimize_result_sequence)
     assert(isinstance(params, BivariateParams))

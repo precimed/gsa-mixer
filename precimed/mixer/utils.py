@@ -182,6 +182,7 @@ class AnnotUnivariateParams(object):
         tld_pow_l = tld_pow_l / np.mean(tld_pow_l)
 
         sig2_beta_effective = self.sig2_beta / self.pi  # divide by pi, to ensure that pi has no effect on heritability (as this helps to improve convergence)
+        #print('sig2_beta_effective: ', sig2_beta_effective)
 
         sig2_annot_array = np.maximum(0, np.array(self._sig2_annot if (sig2_annot is None) else sig2_annot)).flatten()
         sig2_annot_scale = np.mean(sig2_annot_array)
@@ -219,6 +220,7 @@ class AnnotUnivariateParams(object):
         tld_pow_l = tld_pow_l / np.mean(tld_pow_l)
 
         sig2_beta_effective = self.sig2_beta / self.pi  # divide by pi, to ensure that pi has no effect on heritability (as this helps to improve convergence)
+        #print('sig2_beta_effective: ', sig2_beta_effective)
 
         sig2_annot_array = np.maximum(0, np.array(self._sig2_annot if (sig2_annot is None) else sig2_annot, dtype=np.float32)).flatten()
         sig2_annot_scale = np.mean(sig2_annot_array)
@@ -825,7 +827,45 @@ class UnivariateParametrization_natural_axis(object):
     
     def calc_cost(self, vec):
         return self.vec_to_params(vec).cost(self._lib, self._trait)
-    
+
+class BivariateParametrization_pi1_pi2_pi12(object):
+    def __init__(self, params, lib):
+        self._lib = lib
+        self._params1 = params._params1.copy()
+        self._params2 = params._params2.copy()
+
+        self._const_rho_beta = params._rho_beta
+        self._const_rho_zero = params._rho_zero
+
+        # Compensate for "sig2_beta_effective = self.sig2_beta / self.pi" from AnnotUnivariateParams.find_sig2_mat
+        self._const_effective_sig2_beta1 = self._params1._sig2_beta / self._params1._pi
+        self._const_effective_sig2_beta2 = self._params2._sig2_beta / self._params2._pi
+
+    def params_to_vec(self, params):
+        pi12 = params._pi12
+        pi1 = params._params1._pi - pi12
+        pi2 = params._params2._pi - pi12
+        return [_logit_logistic_converter(pi1, invflag=False),
+                _logit_logistic_converter(pi2, invflag=False),
+                _logit_logistic_converter(pi12, invflag=False)]
+
+    def vec_to_params(self, vec):
+        pi1 = _logit_logistic_converter(vec[0], invflag=True)
+        pi2 = _logit_logistic_converter(vec[1], invflag=True)
+        pi12 =_logit_logistic_converter(vec[2], invflag=True)
+
+        # fix univariate pi & sig2_beta
+        self._params1._pi = pi1 + pi12
+        self._params2._pi = pi2 + pi12
+        self._params1._sig2_beta = self._const_effective_sig2_beta1 * (pi1 + pi12)
+        self._params2._sig2_beta = self._const_effective_sig2_beta2 * (pi2 + pi12)
+
+        return BivariateParams(params1=self._params1, params2=self._params2,
+                               rho_beta=self._const_rho_beta, rho_zero=self._const_rho_zero, pi12=pi12)
+
+    def calc_cost(self, vec):
+        return self.vec_to_params(vec).cost(self._lib)
+
 # BGMG_cpp_fit_bivariate_fast (fits pi12 and rho_beta constrained on rg and all univariate params)
 # The difference from the above function (....boundedPI) is that here we map params into [-inf,+inf],
 # while ...boundedPI is parametrized directly with PI.
