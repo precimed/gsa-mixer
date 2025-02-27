@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 
+#include <cstdint>
 #include "TurboPFor/vsimple.h"
 #include "FastDifferentialCoding/fastdelta.h"
 

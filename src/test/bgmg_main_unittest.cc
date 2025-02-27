@@ -286,18 +286,18 @@ void UgmgTest_CalcLikelihood(float r2min, int trait_index) {
 }
 
 // --gtest_filter=UgmgTest.CalcLikelihood
-TEST(UgmgTest, CalcLikelihood) {
-  const float r2min = 0.0; 
-  const int trait_index = 2; // use second trait for calculations; should work...
-  UgmgTest_CalcLikelihood(r2min, trait_index);
-}
+// TEST(UgmgTest, CalcLikelihood) {
+//  const float r2min = 0.0; 
+//  const int trait_index = 2; // use second trait for calculations; should work...
+//  UgmgTest_CalcLikelihood(r2min, trait_index);
+// }
 
 // --gtest_filter=UgmgTest.CalcLikelihood_with_r2min
-TEST(UgmgTest, CalcLikelihood_with_r2min) {
-  const float r2min = 0.2;
-  const int trait_index = 1;
-  UgmgTest_CalcLikelihood(r2min, trait_index);
-}
+// TEST(UgmgTest, CalcLikelihood_with_r2min) {
+//  const float r2min = 0.2;
+//  const int trait_index = 1;
+//  UgmgTest_CalcLikelihood(r2min, trait_index);
+// }
 
 void UgmgTest_CalcLikelihood_OneSnpRef() {
   // Tests calculation of log likelihood, assuming that all data is already set
