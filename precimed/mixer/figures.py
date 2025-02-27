@@ -159,8 +159,8 @@ def plot_z_vs_z_data(df, flip=False, traits=['Trait1', 'Trait2'], plot_limits=15
     '''
         # input can be generated as follows:
         import pandas as pd
-        df1 = pd.read_csv(fname1, delim_whitespace=True, usecols=['SNP', 'A1', 'A2', 'Z'])
-        df2 = pd.read_csv(fname2, delim_whitespace=True, usecols=['SNP', 'A1', 'A2', 'Z'])
+        df1 = pd.read_csv(fname1, sep=r'\s+', usecols=['SNP', 'A1', 'A2', 'Z'])
+        df2 = pd.read_csv(fname2, sep=r'\s+', usecols=['SNP', 'A1', 'A2', 'Z'])
         df = precimed.mixer.figures.merge_z_vs_z(df1, df2)
     '''
     plot_extent = [-plot_limits, plot_limits, -plot_limits, plot_limits]
@@ -466,8 +466,8 @@ def execute_two_parser(args):
             plt.subplot(2,4,6); plot_causal_density(data_test, flip=args.flip, traits=[args.trait1, args.trait2], statistic=args.statistic)
         except:
             pass
-        df1 = pd.read_table(args.trait1_file, delim_whitespace=True, usecols=['SNP', 'A1', 'A2', 'Z'])
-        df2 = pd.read_table(args.trait2_file, delim_whitespace=True, usecols=['SNP', 'A1', 'A2', 'Z'])
+        df1 = pd.read_table(args.trait1_file, sep=r'\s+', usecols=['SNP', 'A1', 'A2', 'Z'])
+        df2 = pd.read_table(args.trait2_file, sep=r'\s+', usecols=['SNP', 'A1', 'A2', 'Z'])
         df = merge_z_vs_z(df1, df2)
         plt.subplot(2,4,7); plot_z_vs_z_data(df, flip=args.flip, plot_limits=args.zmax, traits=[args.trait1, args.trait2])
         plt.subplot(2,4,8); plot_predicted_zscore(data_test, len(df), flip=args.flip, plot_limits=args.zmax, traits=[args.trait1, args.trait2])
