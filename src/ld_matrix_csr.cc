@@ -20,9 +20,10 @@
 
 #include <assert.h>
 #include <algorithm>
+#include <cstdint>
 #include <numeric>
 
-#include "TurboPFor/vsimple.h"
+#include "TurboPFor/include_/vsimple.h"
 #include "FastDifferentialCoding/fastdelta.h"
 
 #include "ld_matrix.h"
