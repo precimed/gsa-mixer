@@ -82,7 +82,7 @@ set(SRC_LIST
 	fmath.hpp
 	plink_ld.cc
 	plink_common.cc
-	semt/semt/VectorExpr.cpp
+	#semt/semt/VectorExpr.cpp
 	snp_lookup.cc
 	TurboPFor/vsimple.c
 	TurboPFor/vint.c
@@ -104,7 +104,7 @@ set_target_properties(bgmg-static PROPERTIES LINK_FLAGS "-static" )
 target_include_directories(bgmg-static PUBLIC ${CMAKE_BINARY_DIR})
 target_include_directories(bgmg-static PUBLIC ${CMAKE_BINARY_DIR}/zlib)
 target_include_directories(bgmg-static PUBLIC ${CMAKE_SOURCE_DIR})
-target_include_directories(bgmg-static PUBLIC ${PROJECT_SOURCE_DIR}/semt)
+#target_include_directories(bgmg-static PUBLIC ${PROJECT_SOURCE_DIR}/semt)
 target_include_directories(bgmg-static PUBLIC ${PROJECT_SOURCE_DIR}/zlib)
 target_compile_definitions(bgmg-static PRIVATE USE_SSE)
 
@@ -115,7 +115,7 @@ set(SRC_TEST_LIST
 	source.cc
 	test/bgmg_main_unittest.cc
 	test/bgmg_ld_test.cc
-	test/semt_test.cc
+	#test/semt_test.cc
 	test/streamvbyte_test.cc
 	test/SIMDxorshift_test.cc
 	test/nlopt_test.cc
@@ -130,7 +130,7 @@ target_link_libraries(bgmg-test bgmg-static zlibstatic ${Boost_LIBRARIES})
 target_include_directories(bgmg-test PUBLIC ${PROJECT_SOURCE_DIR}/googletest/googletest/include)
 target_include_directories(bgmg-test PUBLIC ${PROJECT_SOURCE_DIR}/googletest/googletest)
 target_include_directories(bgmg-test PUBLIC ${PROJECT_SOURCE_DIR})
-target_include_directories(bgmg-test PUBLIC ${PROJECT_SOURCE_DIR}/semt)
+#target_include_directories(bgmg-test PUBLIC ${PROJECT_SOURCE_DIR}/semt)
 target_compile_definitions(bgmg-test PRIVATE BGMG_STATIC_DEFINE)
 
 include(GenerateExportHeader)

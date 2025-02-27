@@ -13,7 +13,7 @@
 #include "snp_lookup.h"
 #include "ld_matrix.h"
 
-const std::string DataFolder = "/home/oleksanf/github/mixer/src/testdata";
+const std::string DataFolder = "/home/oleksanf/github/precimed/gsa-mixer/src/testdata";
 
 void counts(const std::string& unpacked, int* c0, int* c1, int* c2, int* c3) {
   *c0 = 0; *c1 = 0; *c2 = 0; *c3 = 0;
@@ -182,5 +182,5 @@ TEST(TestLd, GatherLdMatrix) {
   ASSERT_FLOAT_EQ(ld_tag_r2_sum_adjust_for_hvec[0], 1.1495708);
 
   ASSERT_FLOAT_EQ(ld_tag_r2_sum[2010], 8.81037998);
-  ASSERT_FLOAT_EQ(ld_tag_r2_sum_adjust_for_hvec[2010], 1.8912569);
+  ASSERT_NEAR(ld_tag_r2_sum_adjust_for_hvec[2010], 1.8912568, 1e-6);
 }

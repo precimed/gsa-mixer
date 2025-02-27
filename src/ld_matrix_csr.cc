@@ -20,6 +20,7 @@
 
 #include <assert.h>
 #include <algorithm>
+#include <cstdint>
 #include <numeric>
 
 #include "TurboPFor/vsimple.h"
