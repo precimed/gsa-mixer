@@ -34,7 +34,7 @@ singularity version 3.7.4
 To dowload Docker version of the GSA-MiXeR, use the following command:
 ```
 docker pull ghcr.io/precimed/gsa-mixer:latest
-export DOCKER_RUN="sudo docker run --user $(id -u):$(id -g) -v $PWD:/home -w /home"
+export DOCKER_RUN="docker run -v $PWD:/home -w /home"
 export MIXER_PY="$DOCKER_RUN ghcr.io/precimed/gsa-mixer:latest python /tools/mixer/precimed/mixer.py"
 ```
 To download singularity version of the GSA-MiXeR, use the following command:
@@ -44,6 +44,13 @@ export MIXER_SIF=<path>/gsa-mixer.sif
 export MIXER_PY="singularity exec --home pwd:/home ${MIXER_SIF} python /tools/mixer/precimed/mixer.py"
 ```
 To fetch a specific version check packages page on github ([here](https://github.com/precimed/gsa-mixer/pkgs/container/gsa-mixer) for Docker, [here](https://github.com/precimed/gsa-mixer/pkgs/container/gsa-mixer_sif) for Singularity), and update the above with a specific tag, e.g. ``gsa-mixer:sha-a7b47d3``.
+
+If you have built MiXeR's native code locally, use
+```
+export GSA_MIXER_ROOT=$HOME/github/precimed/gsa-mixer                   # adjust accordingly
+export BGMG_SHARED_LIBRARY="$GSA_MIXER_ROOT/src/build/lib/libbgmg.so"
+export MIXER_PY="python $GSA_MIXER_ROOT/precimed/mixer.py"
+```
 
 The usage of ``${MIXER_PY}`` should be the same regardless of whether you use Docker or singularity version,
 however for most users we recommend running through singularity container (mainly because singularity is more commonly available in HPC clusters).
@@ -59,6 +66,10 @@ The containers are based on the following [Dockerfile](Dockerfile), built using 
 ### Installing Docker or Singularity on your local machine
 
 To install Docker refer to its documentation: https://docs.docker.com/get-started/get-docker/ .
+Note that by default after Docker installation you need to run it as sudo. 
+The instructions below assume you can run docker as your own user.
+To allow this you need to your user to 'docker' usergroup, as instructed [here](https://docs.docker.com/engine/install/linux-postinstall/).
+Then check that you can run ``docker run hello-world`` command without sudo. If this works you're good to go.
 
 Singularity software (https://sylabs.io/docs/) is most likely available in your HPC environment, however it's also
 not too hard to get it up an running on your laptop (especially on Ubuntu, probably also on older MAC with an intel CPU).

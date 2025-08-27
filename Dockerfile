@@ -1,8 +1,8 @@
 # gwas container
-FROM 'ubuntu:20.04'
+FROM 'ubuntu:24.04'
 
 ENV TZ=Europe
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 LABEL org.opencontainers.image.source=https://github.com/precimed/gsa-mixer
 LABEL org.opencontainers.image.description="GSA-MiXeR"

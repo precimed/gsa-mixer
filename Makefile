@@ -1,5 +1,5 @@
-all: mixer.sif
+all: gsa-mixer.sif
 
-mixer.sif: Dockerfile
-	docker build -t mixer -f Dockerfile . && scripts/from_docker_image.sh mixer
+gsa-mixer.sif: Dockerfile
+	docker build -t gsa-mixer -f Dockerfile . && scripts/from_docker_image.sh gsa-mixer
 

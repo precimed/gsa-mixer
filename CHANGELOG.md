@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* change Dockerfile to use Ubuntu 24.04 as base image, upgrade dependencies accordingly
 * standardize location of ``gsa-mixer.sif`` across scripts
 * use ``sep=r'\s+'`` instead of ``delim_whitespace=True`` in ``pandas.read_csv`` calls
 
