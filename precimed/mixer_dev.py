@@ -4,18 +4,11 @@ import logging
 import sys
 import argparse
 
-from version import VERSION as __version__
+from version import VERSION as __version__, MASTHEAD
 import gsa_mixer.cli
 import mixer_dev.cli
 import mixer_dev.figures
 import common.utils_cli
-
-MASTHEAD = "***********************************************************************\n"
-MASTHEAD += "* (c) 2016-2025 MiXeR software\n"
-MASTHEAD += "* Norwegian Centre for Mental Disorders Research / University of Oslo\n"
-MASTHEAD += "* Center for Multimodal Imaging and Genetics / UCSD\n"
-MASTHEAD += "* GNU General Public License v3\n"
-MASTHEAD += "***********************************************************************\n"
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
@@ -27,10 +20,7 @@ if __name__ == "__main__":
         parser.add_argument('--version', action='version', version=f'MiXeR v{__version__}')
 
         parent_parser = argparse.ArgumentParser(add_help=False)
-        parent_parser.add_argument('--argsfile', type=open, action=common.utils_cli.LoadFromFile, default=None, help=argparse.SUPPRESS) #"file with additional command-line arguments, e.g. those that are across all of your mixer.py runs (--lib, --bim-file and --ld-file)")
-        parent_parser.add_argument("--out", type=str, default="mixer", help="prefix for the output files, such as <out>.json (default: %(default)s);")
-        parent_parser.add_argument("--lib", type=str, default="libbgmg.so", help="path to libbgmg.so plugin (default: %(default)s); can be also specified via BGMG_SHARED_LIBRARY env variable.")
-        parent_parser.add_argument("--log", type=str, default=None, help="file to output log (default: <out>.log); NB! if --log points to an existing file the new lines will be appended to it at the end of the file.")
+        common.utils_cli.parent_parser_add_argument_out_lib_log(parent_parser)
 
         subparsers = parser.add_subparsers()
 

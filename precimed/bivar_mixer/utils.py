@@ -10,9 +10,7 @@ MiXeR software: Univariate and Bivariate Causal Mixture for GWAS
 # _calculate_univariate_uncertainty, _calculate_bivariate_uncertainty - estimates confidence intervals for parameters and their aggregates (like h2 or rg) 
  
 import numpy as np
-import numpy.matlib
 import numdifftools as nd
-import scipy.optimize
 import scipy.stats
 from scipy.interpolate import interp1d
 import json
@@ -21,46 +19,9 @@ epsval = np.finfo(float).eps
 minval = np.finfo(float).min
 maxval = np.finfo(float).max
 
-def _log_bounded(x): # transforms, roughtly speaking, [0.00001, 100000] to [-10, 10]
-    if not np.isfinite(x): return x
-    if x<epsval: x=epsval
-    if x>maxval: x=maxval
-    y = np.log(x)
-    return y
-
-def _exp_bounded(x): # transforms, roughtly speaking, [-10, 10] to [0.0001, 100000]
-    if not np.isfinite(x): return x
-    y = np.exp(x)
-    if y<epsval: y=epsval
-    if y>maxval: y=maxval
-    return y
-
-def _logit_bounded(x): # transforms, roughly speaking, [0.00001, 0.99999] to [-10, 10]
-    if not np.isfinite(x): return x
-    if x<epsval: x=epsval
-    if x>(1-epsval): x=1-epsval
-    y = _log_bounded(x / (1-x))
-    return y
-    
-def _logistic_bounded(x): # transforms, roughly speaking, [-10, 10] to [0.00001, 0.99999]
-    if not np.isfinite(x): return x
-    y = _exp_bounded(x) / (1 + _exp_bounded(x))
-    if y<epsval: y=epsval
-    if y>(1-epsval): y=1-epsval
-    return y
-    
-# converter that maps [0, +inf] domain to [-inf, inf], and back if infvlag=True
-def _log_exp_converter(x, invflag=False):
-    return _exp_bounded(x) if invflag else _log_bounded(x)
-
-# converter that maps [0, 1] domain to [-inf, inf], and back if infvlag=True
-def _logit_logistic_converter(x, invflag=False):
-    return _logistic_bounded(x) if invflag else _logit_bounded(x)
-
-# converter that maps [-1, 1] domain to [-inf, inf], and back if infvlag=True
-# this has an additional property that arctanh(X) ~ X for small values of X.
-def _arctanh_tanh_converter(x, invflag=False):
-    return (2.0 * _logistic_bounded(2.0 * x) - 1.0) if invflag else 0.5*_logit_bounded(0.5*x + 0.5)
+from common.utils import _log_exp_converter
+from common.utils import _logit_logistic_converter
+from common.utils import _arctanh_tanh_converter
 
 class UnivariateParams(object):
     def __init__(self, pi, sig2_beta, sig2_zero):
@@ -111,227 +72,6 @@ class UnivariateParams(object):
     def power(self, lib, trait, ngrid, zthresh=5.45):
         return lib.calc_unified_univariate_power(trait, self.find_pi_mat(lib.num_snp), self.find_sig2_mat(lib.num_snp),
                                                  sig2_zeroA=self._sig2_zero, sig2_zeroC=1, sig2_zeroL=0, zthresh=zthresh, ngrid=ngrid)
-
-# params for MAF-, LD-, and annotation-dependent architectures
-# this also supports mixture of small and large effects (pass vector pi and sig2_beta)
-# NB! Trick #1 np.cumsum(sig2_beta) is what gives variance per SNP
-# NB! Trick #2 pi[0]==1 indicates that this component is responsible for "everything else"
-class AnnotUnivariateParams(object):
-    def __init__(self, pi=[None], sig2_beta=[None], sig2_annot=None, s=None, l=None, sig2_zeroA=None, sig2_zeroL=None, annomat=None, annonames=None, mafvec=None, tldvec=None):
-        if annomat is not None: assert(annomat.ndim == 2) # 1D arrays don't work in np.dot as we want matrix multiplication
-        self._pi = [pi] if ((pi is None) or isinstance(pi, (int, float))) else pi
-        self._sig2_beta = [sig2_beta] if ((sig2_beta is None) or isinstance(sig2_beta, (int, float))) else sig2_beta
-        self._sig2_annot = sig2_annot
-        self._s = s
-        self._l = l
-        self._sig2_zeroA = sig2_zeroA
-        self._sig2_zeroL = sig2_zeroL
-
-        self._annomat = annomat
-        self._annonames = annonames
-        self._mafvec = mafvec
-        self._tldvec = tldvec
-
-    def as_string(self, attrs_list=['_pi', '_sig2_beta', '_sig2_annot', '_s', '_l', '_sig2_zeroA', '_sig2_zeroL']):
-        description = []
-        for attr_name in attrs_list:
-            try:
-                attr_value = getattr(self, attr_name)
-                description.append('{}: {}'.format(attr_name, attr_value))
-            except RuntimeError:
-                pass
-        return 'AnnotUnivariateParams({})'.format(', '.join(description))
-
-    def __str__(self):
-        return self.as_string()
-
-    __repr__ = __str__
-
-    def as_dict(self):
-        return {'pi': self._pi, 'sig2_beta': self._sig2_beta,
-                'sig2_zeroA': self._sig2_zeroA, 'sig2_zeroL': self._sig2_zeroL,
-                's': self._s, 'l': self._l,
-                'sig2_annot': self._sig2_annot, 'annonames': self._annonames}
-
-    def fit_sig2_annot(self, lib, trait):
-        nnls_mat = self.nnls_mat(lib, trait=trait)
-
-        defvec = np.isfinite(lib.get_zvec(trait)) & (lib.weights > 0)
-        nnls_mat = nnls_mat[defvec, :]
-        nnls_mat1 = np.concatenate([np.ones(shape=(nnls_mat.shape[0], 1), dtype=np.float32), nnls_mat], 1)
-        z2 = np.square(lib.get_zvec(trait)[defvec])
-        w = lib.weights[defvec]
-
-        z2w = np.multiply(z2, np.sqrt(w))
-        nnls_mat1w = np.multiply(nnls_mat1, np.matlib.repmat(np.sqrt(w.reshape(-1, 1)), 1, nnls_mat1.shape[1]))
-        # note that in the above formulas the intercept is also weighted - that's correct 
-        # weighted least squares is equivalent to pre-conditioning by sqrt(w), as one can validate as follows:
-        # mod_wls = sm.WLS(z2, nnls_mat1, weights=w); res_wls = mod_wls.fit(); res_wls.params
-        # x, res, rank, s = np.linalg.lstsq(nnls_mat1w, z2w, rcond=None)
-
-        # https://en.wikipedia.org/wiki/Non-negative_least_squares
-        #sig2_annot, cost=scipy.optimize.nnls(nnls_mat1, z2)
-        sig2_annot, _=scipy.optimize.nnls(nnls_mat1w, z2w)
-        self._sig2_zeroA=sig2_annot[0]  # save intercept
-        self._sig2_annot=sig2_annot[1:]
-
-    def drop_zero_annot(self):
-        self._annomat=self._annomat[:, self._sig2_annot>0]
-        self._annonames=[a for a, s in zip(self._annonames, self._sig2_annot) if s>0]
-        self._sig2_annot=self._sig2_annot[self._sig2_annot > 0]
-    
-    def find_pi_mat(self, num_snp):
-        pi = ([np.max([0, 1-np.sum(self._pi[1:])])] + self._pi[1:]) if (self._pi[0]==1) else self._pi  # Trick #2
-        if (len(self._pi) > 1): raise(NotImplementedError("I suspect the matrix is wrongly oriented here"))
-        return np.matmul(np.ones(shape=(num_snp, 1), dtype=np.float32), np.array(pi, dtype=np.float32).reshape(1, -1))
-
-    def find_sig2_mat(self):
-        sig2_beta = np.cumsum(self._sig2_beta) # Trick #1 (all subsequent components have larger variance)
-        return np.matmul(
-                np.multiply(np.dot(self._annomat, np.array(self._sig2_annot).astype(np.float32)),
-                            np.multiply(np.power(np.float32(2.0) * self._mafvec * (1-self._mafvec), np.float32(self._s)),
-                                        np.power(self._tldvec, np.float32(self._l)))).reshape(-1, 1),
-                np.array(sig2_beta, dtype=np.float32).reshape(1, -1))
-
-    def find_annot_h2(self, annomat):
-        sig2_mat = self.find_sig2_mat()
-        hetvec = np.float32(2.0) * self._mafvec * (1-self._mafvec)
-        h2_vec = np.multiply(hetvec, np.matmul(sig2_mat, self.find_pi_mat(num_snp=1).reshape([-1, 1])).flatten())
-        return np.matmul(h2_vec.reshape((1, len(h2_vec))), annomat)
-
-    def find_annot_enrich(self, annomat):
-        h2_annot = self.find_annot_h2(annomat)
-        h2_total = h2_annot[0][0]
-        snps_annot = np.sum(annomat, 0)
-        snps_total = snps_annot[0]
-        return np.divide(np.divide(h2_annot, h2_total), np.divide(snps_annot, snps_total))
-
-    def nnls_mat(self, lib, trait):
-        # NB! This function assumes an infinitesimal model
-        assert(len(self._sig2_beta) == 1)
-
-        num_annot = self._annomat.shape[1]
-        
-        pi_vec = np.ones(shape=(lib.num_snp, 1), dtype=np.float32)
-        sig2_vec = np.multiply(np.power(np.float32(2.0) * self._mafvec * (1-self._mafvec), np.float32(self._s)),
-                               np.power(self._tldvec, np.float32(self._l))) * self._sig2_beta[0]
-        sig2_zeroL = 0 # force sig2_zeroL to zero (this may seem a bit tricky or contriversial, but later we add self._sig2_zeroL via infinitesimal model => it shouldn't contribute to annotation-specific sigma2_beta)
-        sig2_zeroA = 0 # force sig2_zeroA to zero (this need not to contirbute to each TLD score across all annotation categories;
-                       # the intercept term is added (and computed) later by fit_sig2_annot()
-        sig2_zeroC = 1
-        retval=np.zeros(shape=(lib.num_tag, num_annot), dtype=np.float32)
-        lib.set_option('aux_option', 1)  # AuxOption_Ezvec2
-        for annot_index in range(0, num_annot):
-            retval[:, annot_index] = lib.calc_unified_univariate_aux(1, pi_vec, np.multiply(self._annomat[:, annot_index], sig2_vec), sig2_zeroA, sig2_zeroC, sig2_zeroL)
-        lib.set_option('aux_option', 0)  # AuxOption_None
-        return retval
-
-    def cost(self, lib, trait):
-        pi_mat = self.find_pi_mat(lib.num_snp)
-        sig2_mat = self.find_sig2_mat()
-        value = lib.calc_unified_univariate_cost(trait, pi_mat, sig2_mat, self._sig2_zeroA, sig2_zeroC=1, sig2_zeroL=self._sig2_zeroL)
-        return value if np.isfinite(value) else 1e100
-
-    def pdf(self, lib, trait, zgrid):
-        pi_mat = self.find_pi_mat(lib.num_snp)
-        sig2_mat = self.find_sig2_mat()
-        return lib.calc_unified_univariate_pdf(trait, pi_mat, sig2_mat, self._sig2_zeroA, sig2_zeroC=1, sig2_zeroL=self._sig2_zeroL, zgrid=zgrid)
-
-    def tag_pdf(self, lib, trait):
-        pi_mat = self.find_pi_mat(lib.num_snp)
-        sig2_mat = self.find_sig2_mat()
-        lib.set_option('aux_option', 2)  # AuxOption_TagPdf
-        retval = lib.calc_unified_univariate_aux(trait, pi_mat, sig2_mat, self._sig2_zeroA, sig2_zeroC=1, sig2_zeroL=self._sig2_zeroL)
-        lib.set_option('aux_option', 0)  # AuxOption_None
-        return retval
-
-    def tag_pdf_err(self, lib, trait):
-        pi_mat = self.find_pi_mat(lib.num_snp)
-        sig2_mat = self.find_sig2_mat()
-        lib.set_option('aux_option', 3)  # AuxOption_TagPdfErr
-        retval = lib.calc_unified_univariate_aux(trait, pi_mat, sig2_mat, self._sig2_zeroA, sig2_zeroC=1, sig2_zeroL=self._sig2_zeroL)
-        lib.set_option('aux_option', 0)  # AuxOption_None
-        return retval
-
-    def power(self, lib, trait, ngrid, zthresh=5.45):
-        pi_mat = self.find_pi_mat(lib.num_snp)
-        sig2_mat = self.find_sig2_mat()
-        return lib.calc_unified_univariate_power(trait, pi_mat, sig2_mat, self._sig2_zeroA, sig2_zeroC=1, sig2_zeroL=self._sig2_zeroL, zthresh=zthresh, ngrid=ngrid)
-
-class AnnotBivariateParams(object):
-    def __init__(self):
-        self._params1 = None # univariate architecture for each trait
-        self._params2 = None # both params must be either single-component causal mixture, or an infinitesimal model
-                             # both params are automatically alighed to share the list of annotation categories, and annotatinos not present in _params1 or _params2 receive sig2_annot=0.
-        self._pi12 = None    # polygenic overlap parameter (must not exceed _params1._pi and _params2._pi)
-        self._rho_annot = None # vector of effect size correlations for each annotation category
-        self._rho_zeroA = None # correlation of sig2_zeroA
-        self._rho_zeroL = None # correlation of sig2_zeroL
-
-class AnnotUnivariateParametrization(object):
-    def __init__(self, lib, trait, constraint):
-        self._lib = lib
-        self._trait = trait
-        self._constraint = constraint # of type AnnotUnivariateParams, None indicate files that must be searched
-
-    def params_to_vec(self, params):
-        vec = []
-        for constraint_pi, params_pi in zip(self._constraint._pi, params._pi):
-            if constraint_pi is None: vec.append(_logit_logistic_converter(params_pi, invflag=False))
-        for constraint_s2b, params_s2b in zip(self._constraint._sig2_beta, params._sig2_beta):
-            if constraint_s2b is None: vec.append(_log_exp_converter(params_s2b, invflag=False))
-        if self._constraint._s is None: vec.append(params._s)
-        if self._constraint._l is None: vec.append(params._l)
-        if self._constraint._sig2_zeroA is None: vec.append(_log_exp_converter(params._sig2_zeroA, invflag=False))
-        if self._constraint._sig2_zeroL is None: vec.append(_log_exp_converter(params._sig2_zeroL, invflag=False))
-        return vec
-
-    def vec_to_params(self, vec):
-        vec = list(vec)
-        return AnnotUnivariateParams(
-            pi=[(constraint_pi if (constraint_pi is not None) else _logit_logistic_converter(vec.pop(0), invflag=True)) for constraint_pi in self._constraint._pi],
-            sig2_beta=[(constraint_s2b if (constraint_s2b is not None) else _log_exp_converter(vec.pop(0), invflag=True)) for constraint_s2b in self._constraint._sig2_beta],
-            sig2_annot=self._constraint._sig2_annot,
-            s=self._constraint._s if (self._constraint._s is not None) else vec.pop(0),
-            l=self._constraint._l if (self._constraint._l is not None) else vec.pop(0),
-            sig2_zeroA=self._constraint._sig2_zeroA if (self._constraint._sig2_zeroA is not None) else _log_exp_converter(vec.pop(0), invflag=True),
-            sig2_zeroL=self._constraint._sig2_zeroL if (self._constraint._sig2_zeroL is not None) else _log_exp_converter(vec.pop(0), invflag=True),
-            annomat=self._constraint._annomat,
-            annonames=self._constraint._annonames,
-            mafvec=self._constraint._mafvec,
-            tldvec=self._constraint._tldvec)
-
-    def calc_cost(self, vec):
-        params = self.vec_to_params(vec)
-        self._lib.log_message(params.as_string(attrs_list=['_pi', '_sig2_beta', '_s', '_l', '_sig2_zeroA', '_sig2_zeroL']))
-        return params.cost(self._lib, self._trait)
-
-# a specific approximation that constrains pi=1 and sig2_zeroL = sig2_beta.
-class AnnotUnivariateParametrizationInf(object):
-    def __init__(self, lib, trait, constraint):
-        self._lib = lib
-        self._trait = trait
-        self._constraint = constraint # of type AnnotUnivariateParams
-
-    def params_to_vec(self, params):
-        return [_log_exp_converter(params._sig2_beta[0], invflag=False),
-                _log_exp_converter(params._sig2_zeroA, invflag=False)]
-
-    def vec_to_params(self, vec):
-        vec = list(vec)
-        sig2_beta = _log_exp_converter(vec.pop(0), invflag=True)
-        sig2_zeroA = _log_exp_converter(vec.pop(0), invflag=True)
-        return AnnotUnivariateParams(
-            pi=1, sig2_beta=[sig2_beta], sig2_annot=[1], s=0, l=0, sig2_zeroA=sig2_zeroA, sig2_zeroL=sig2_beta,
-            annomat=self._constraint._annomat,
-            annonames=self._constraint._annonames,
-            mafvec=self._constraint._mafvec,
-            tldvec=self._constraint._tldvec)
-
-    def calc_cost(self, vec):
-        params = self.vec_to_params(vec)
-        self._lib.log_message(params.as_string(attrs_list=['_pi', '_sig2_beta', '_s', '_l', '_sig2_zeroA', '_sig2_zeroL']))
-        return params.cost(self._lib, self._trait)
 
 class BivariateParams(object):
     def __init__(self, pi=None, sig2_beta=None, rho_beta=None, sig2_zero=None, rho_zero=None, params1=None, params2=None, pi12=None):
@@ -964,16 +704,6 @@ def calc_power_curve(libbgmg, params, trait_index, downsample, nvec=None):
         return {}
 
     return {'nvec': power_nvec, 'svec': power_svec}
-
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if callable(obj):
-            return str(obj)
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        if isinstance(obj, np.float32):
-            return np.float64(obj)
-        return json.JSONEncoder.default(self, obj)
 
 if False:
     '''

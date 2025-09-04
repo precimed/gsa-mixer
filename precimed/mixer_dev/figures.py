@@ -27,6 +27,7 @@ from scipy.stats import multivariate_normal
 from .utils import _calculate_bivariate_uncertainty_funcs
 from .utils import _dict_to_params
 from common.utils import NumpyEncoder
+import common.utils_cli
 
 def make_qq_plot(qq, ci=True, ylim=7.3, xlim=7.3):
     hv_logp = np.array(qq['hv_logp']).astype(float)
@@ -333,17 +334,6 @@ def make_power_plot(data_vec, colors=None, traits=None, power_thresh=None):
     plt.yticks(np.arange(0, 1.01, step=0.2))
     plt.gca().set_yticklabels(labels=['0', '20', '40', '60', '80', '100'])
 
-# https://stackoverflow.com/questions/27433316/how-to-get-argparse-to-read-arguments-from-a-file-with-an-option-rather-than-pre
-class LoadFromFile (argparse.Action):
-    def __call__ (self, parser, namespace, values, option_string=None):
-        with values as f:
-            contents = f.read()
-
-        data = parser.parse_args(contents.split(), namespace=namespace)
-        for k, v in vars(data).items():
-            if v and k != option_string.lstrip('-'):
-                setattr(namespace, k, v)
-
 def parser_one_add_arguments(func, parser):
     parser.add_argument('--json', type=str, default=[""], nargs='+', help="json file from a univariate analysis. This argument does support wildcards (*) or a list with multiple space-separated arguments to process more than one .json file. This allows to generate a combined .csv table across many traits.")
     parser.add_argument('--trait1', type=str, default=[], nargs='+', help="name of the first trait")
@@ -374,7 +364,7 @@ def generate_args_parser(__version__=None):
     parser.add_argument('--version', action='version', version=f'MiXeR v{__version__}')
 
     parent_parser = argparse.ArgumentParser(add_help=False)
-    parent_parser.add_argument('--argsfile', type=open, action=LoadFromFile, default=None, help="file with additional command-line arguments")
+    parent_parser.add_argument('--argsfile', type=open, action=common.utils_cli.LoadFromFile, default=None, help="file with additional command-line arguments")
     parent_parser.add_argument("--out", type=str, default="mixer", help="prefix for the output files")
     parent_parser.add_argument('--ext', type=str, default=['png'], nargs='+', choices=['png', 'svg'], help="output extentions")
     parent_parser.add_argument('--zmax', type=float, default=10, help="limit for z-vs-z density plots")

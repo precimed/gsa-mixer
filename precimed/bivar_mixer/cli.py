@@ -17,13 +17,11 @@ import scipy.stats
 import random
 from scipy.interpolate import interp1d
 import time
+import common.utils_cli
 
-from .libbgmg import LibBgmg
+from common.libbgmg import LibBgmg
 from .utils import UnivariateParams
 from .utils import BivariateParams
-from .utils import _log_exp_converter
-from .utils import _logit_logistic_converter
-from .utils import _arctanh_tanh_converter
 from .utils import UnivariateParametrization_natural_axis		                     # diffevo, neldermead
 from .utils import UnivariateParametrization_constPI_constSIG2BETA                   # inflation
 from .utils import UnivariateParametrization_constPI		                         # infinitesimal
@@ -44,22 +42,9 @@ from .utils import calc_qq_data
 from .utils import calc_qq_model
 from .utils import calc_qq_plot
 from .utils import calc_power_curve
-from .utils import NumpyEncoder
 
-__version__ = '1.2.0'
-MASTHEAD = "***********************************************************************\n"
-MASTHEAD += "* mixer.py: Univariate and Bivariate Causal Mixture for GWAS\n"
-MASTHEAD += "* Version {V}\n".format(V=__version__)
-MASTHEAD += "* (c) 2016-2020 Oleksandr Frei, Alexey A. Shadrin, Dominic Holland\n"
-MASTHEAD += "* Norwegian Centre for Mental Disorders Research / University of Oslo\n"
-MASTHEAD += "* Center for Multimodal Imaging and Genetics / UCSD\n"
-MASTHEAD += "* GNU General Public License v3\n"
-MASTHEAD += "***********************************************************************\n"
-
-_cost_calculator_sampling = 0
-_cost_calculator_gaussian = 1
-_cost_calculator_convolve = 2
-_cost_calculator_smplfast = 3
+from common.utils import NumpyEncoder
+from common.libbgmg import _cost_calculator_sampling, _cost_calculator_convolve, _cost_calculator_gaussian, _cost_calculator_smplfast
 
 _cost_calculator = {
     'gaussian': _cost_calculator_gaussian, 
@@ -78,77 +63,16 @@ def enhance_optimize_result(r, cost_n, cost_df=None, cost_fast=None):
     r['AIC'] =                   2 * r['cost_df'] + 2 * r['cost']
     if cost_fast is not None: r['cost_fast'] = cost_fast
 
-def check_input_file(args, argname, chri=None):
-    arg_dict = vars(args)
-    if argname in arg_dict:
-        if not arg_dict[argname]: raise ValueError("Missing required argument --{}".format(argname))
-        argval = arg_dict[argname]
-        if chri: argval=argval.replace('@', str(chri))
-        if not os.path.isfile(argval): raise ValueError("Input file --{a} does not exist: {f}".format(a=argname, f=argval))
-
-def fix_and_validate_args(args):
-    check_input_file(args, 'trait1_file')
-    check_input_file(args, 'trait2_file')
-    check_input_file(args, 'trait1_params_file')
-    check_input_file(args, 'trait2_params_file')
-    check_input_file(args, 'load-params-file')
-
-    arg_dict = vars(args)
-    chr2use_arg = arg_dict["chr2use"]
-    chr2use = []
-    for a in chr2use_arg.split(","):
-        if "-" in a:
-            start, end = [int(x) for x in a.split("-")]
-            chr2use += [str(x) for x in range(start, end+1)]
-        else:
-            chr2use.append(a.strip())
-    if np.any([not x.isdigit() for x in chr2use]): raise ValueError('Chromosome labels must be integer')
-    arg_dict["chr2use"] = [int(x) for x in chr2use]
-
-    for chri in arg_dict["chr2use"]:
-        check_input_file(args, 'bim-file', chri)
-        check_input_file(args, 'ld-file', chri)
-
-def convert_args_to_libbgmg_options(args, num_snp):
-    libbgmg_options = {
-        'r2min': args.r2min if ('r2min' in args) else None,
-        'kmax': args.kmax[0] if ('kmax' in args) else None, 
-        'threads': args.threads[0] if ('threads' in args) else None,
-        'seed': args.seed if ('seed' in args) else None,
-        'cubature_rel_error': args.cubature_rel_error if ('cubature_rel_error' in args) else None,
-        'cubature_max_evals': args.cubature_max_evals if ('cubature_max_evals' in args) else None,
-        'z1max': args.z1max if ('z1max' in args) else None,
-        'z2max': args.z2max if ('z2max' in args) else None, 
-    }
-    return [(k, v) for k, v in libbgmg_options.items() if v is not None ]
-
-# https://stackoverflow.com/questions/27433316/how-to-get-argparse-to-read-arguments-from-a-file-with-an-option-rather-than-pre
-class LoadFromFile (argparse.Action):
-    def __call__ (self, parser, namespace, values, option_string=None):
-        with values as f:
-            contents = f.read()
-
-        data = parser.parse_args(contents.split(), namespace=namespace)
-        for k, v in vars(data).items():
-            if v and k != option_string.lstrip('-'):
-                setattr(namespace, k, v)
-
 def parser_add_common_arguments(parser, num_traits):
-    parser.add_argument("--bim-file", type=str, default=None, help="Plink bim file. "
-        "Defines the reference set of SNPs used for the analysis. "
-        "Marker names must not have duplicated entries. "
-        "May contain simbol '@', which will be replaced with the actual chromosome label. ")
-    parser.add_argument("--ld-file", type=str, default=None, help="File with linkage disequilibrium information, "
-        "generated via 'mixer.py ld' command. "
-        "May contain simbol '@', similarly to --bim-file argument. ")
-    parser.add_argument("--chr2use", type=str, default="1-22", help="Chromosome ids to use "
-         "(e.g. 1,2,3 or 1-4,12,16-20). Chromosome must be labeled by integer, i.e. X and Y are not acceptable. ")
+    common.utils_cli.parser_add_argument_bim_file(parser)
+    common.utils_cli.parser_add_argument_ld_file(parser)
+    common.utils_cli.parser_add_argument_chr2use(parser)
+
     parser.add_argument("--trait1-file", type=str, default=None, help="GWAS summary statistics for the first trait. ")
     if num_traits==2: parser.add_argument("--trait2-file", type=str, default="", help="GWAS summary statistics for the second trait. ")
     parser.add_argument('--z1max', type=float, default=None, help="right-censoring threshold for the first trait. ")
     if num_traits==2: parser.add_argument('--z2max', type=float, default=None, help="right-censoring threshold for the second trait. ")
-    parser.add_argument('--extract', type=str, default="", help="File with variants to include in the analysis")
-    parser.add_argument('--exclude', type=str, default="", help="File with variants to exclude from the analysis")
+    common.utils_cli.parser_add_argument_extract_and_exclude(parser)
     parser.add_argument('--randprune-n', type=int, default=64, help="Number of random pruning iterations")
     parser.add_argument('--randprune-r2', type=float, default=0.1, help="Threshold for random pruning")
     parser.add_argument('--seed', type=int, default=123, help="Random seed")
@@ -158,7 +82,7 @@ def parser_add_common_arguments(parser, num_traits):
     parser.add_argument('--cubature-max-evals', type=float, default=1000, help="max evaluations for cubature stop criteria (applies to 'convolve' cost calculator). "
         "Bivariate cubature require in the order of 10^4 evaluations and thus is much slower than sampling, therefore it is not exposed via mixer.py command-line interface. ")
 
-def parser_fit_or_test_add_arguments(args, func, parser, do_fit, num_traits):
+def parser_fit_or_test_add_arguments(func, parser, do_fit, num_traits):
     parser_add_common_arguments(parser, num_traits)
 
     if do_fit and (num_traits==1):
@@ -178,10 +102,10 @@ def parser_fit_or_test_add_arguments(args, func, parser, do_fit, num_traits):
     else:
         raise ValueError('internal error: invalid combination of do_fit and num_traits')
 
-    if do_fit:
-        parser.add_argument('--kmax', type=int, default=[20000], nargs='+', help="Number of sampling iterations")
-    else:
-        parser.add_argument('--kmax', type=int, default=[100], nargs='+', help="Number of sampling iterations")
+    parser.add_argument('--kmax', type=int, default=[20000], nargs='+', help="Number of sampling iterations")
+    parser.add_argument('--kmax-pdf', type=int, default=[100], nargs='+', help=argparse.SUPPRESS) # help="number of sampling iterations for qq-plot and power-curves (default: 100)")
+
+    if not do_fit:
         parser.add_argument('--load-params-file', type=str, default=None, help="params of the fitted model (for 'mixer.py test1' and 'mixer.py test2' runs). ")
 
     # all arguments below marked with argparse.SUPRESS option are internal and not recommended for a general use.
@@ -213,68 +137,39 @@ def parser_fit_or_test_add_arguments(args, func, parser, do_fit, num_traits):
 
     parser.set_defaults(func=func)
 
-def parser_ld_add_arguments(args, func, parser):
-    parser.add_argument("--bfile", type=str, default=None, help="Path to plink bfile. ")
-    parser.add_argument('--r2min', type=float, default=0.05, help="r2 values above this threshold will be stored in sparse LD format")
-    parser.add_argument('--ldscore-r2min', type=float, default=0.001, help="r2 values above this threshold (and below --r2min) will be stored as LD scores that contribute to the cost function via an infinitesimal model")
-    parser.add_argument('--ld-window-kb', type=float, default=0, help="limit window similar to --ld-window-kb in 'plink r2'; 0 will disable this constraint")
-    parser.add_argument('--ld-window', type=int, default=0, help="limit window similar to --ld-window in 'plink r2'; 0 will disable this constraint")
-    parser.set_defaults(func=func)
-
-def parser_snps_add_arguments(args, func, parser):
-    parser.add_argument("--bim-file", type=str, default=None, help="Plink bim file. "
-        "Defines the reference set of SNPs used for the analysis. "
-        "Marker names must not have duplicated entries. "
-        "May contain simbol '@', which will be replaced with the actual chromosome label. ")
-    parser.add_argument("--ld-file", type=str, default=None, help="File with linkage disequilibrium information, "
-        "generated via 'mixer.py ld' command. "
-        "May contain simbol '@', similarly to --bim-file argument. ")
-    parser.add_argument("--chr2use", type=str, default="1-22", help="Chromosome ids to use "
-         "(e.g. 1,2,3 or 1-4,12,16-20). Chromosome must be labeled by integer, i.e. X and Y are not acceptable. ")
+def parser_snps_add_arguments(func, parser):
+    common.utils_cli.parser_add_argument_bim_file(parser)
+    common.utils_cli.parser_add_argument_ld_file(parser)
+    common.utils_cli.parser_add_argument_chr2use(parser)
     parser.add_argument('--r2', type=float, default=0.8, help="r2 threshold for random prunning")
     parser.add_argument('--maf', type=float, default=0.05, help="maf threshold")
     parser.add_argument('--subset', type=int, default=2000000, help="number of SNPs to randomly select")
     parser.add_argument('--seed', type=int, default=123, help="Random seed")
     parser.set_defaults(func=func)
 
-def parser_perf_add_arguments(args, func, parser):
+def parser_perf_add_arguments(func, parser):
     parser_add_common_arguments(parser, num_traits=2)
     parser.add_argument('--kmax', type=int, default=[20000, 2000, 200], nargs='+', help="Number of sampling iterations")
     parser.set_defaults(func=func)
 
-def parse_args(args):
-    parser = argparse.ArgumentParser(description="MiXeR: Univariate and Bivariate Causal Mixture for GWAS.")
+def generate_args_parser(__version__=None):
+    parser = argparse.ArgumentParser(description=f"MiXeR v{__version__}: Univariate and Bivariate Causal Mixture for GWAS.")
+    parser.add_argument('--version', action='version', version=f'MiXeR v{__version__}')
 
     parent_parser = argparse.ArgumentParser(add_help=False)
-    parent_parser.add_argument('--argsfile', type=open, action=LoadFromFile, default=None, help="file with additional command-line arguments, e.g. those that are across all of your mixer.py runs (--lib, --bim-file and --ld-file)")
-    parent_parser.add_argument("--out", type=str, default="mixer", help="prefix for the output files")
-    parent_parser.add_argument("--lib", type=str, default="libbgmg.so", help="path to libbgmg.so plugin")
-    parent_parser.add_argument("--log", type=str, default=None, help="file to output log, defaults to <out>.log")
-    
+    common.utils_cli.parent_parser_add_argument_out_lib_log(parent_parser)
+
     subparsers = parser.add_subparsers()
 
-    parser_fit_or_test_add_arguments(args=args, func=execute_fit1_or_test1_parser, parser=subparsers.add_parser("fit1", parents=[parent_parser], help='fit univariate MiXeR model'), do_fit=True, num_traits=1)
-    parser_fit_or_test_add_arguments(args=args, func=execute_fit1_or_test1_parser, parser=subparsers.add_parser("test1", parents=[parent_parser], help='test univariate MiXeR model'), do_fit=False, num_traits=1)
-    parser_fit_or_test_add_arguments(args=args, func=execute_fit2_or_test2_parser, parser=subparsers.add_parser("fit2", parents=[parent_parser], help='fit bivariate MiXeR model'), do_fit=True, num_traits=2)
-    parser_fit_or_test_add_arguments(args=args, func=execute_fit2_or_test2_parser, parser=subparsers.add_parser("test2", parents=[parent_parser], help='test bivariate MiXeR model'), do_fit=False, num_traits=2)
+    parser_fit_or_test_add_arguments(func=execute_fit1_or_test1_parser, parser=subparsers.add_parser("fit1", parents=[parent_parser], help='fit univariate MiXeR model'), do_fit=True, num_traits=1)
+    parser_fit_or_test_add_arguments(func=execute_fit1_or_test1_parser, parser=subparsers.add_parser("test1", parents=[parent_parser], help='test univariate MiXeR model'), do_fit=False, num_traits=1)
+    parser_fit_or_test_add_arguments(func=execute_fit2_or_test2_parser, parser=subparsers.add_parser("fit2", parents=[parent_parser], help='fit bivariate MiXeR model'), do_fit=True, num_traits=2)
+    parser_fit_or_test_add_arguments(func=execute_fit2_or_test2_parser, parser=subparsers.add_parser("test2", parents=[parent_parser], help='test bivariate MiXeR model'), do_fit=False, num_traits=2)
 
-    parser_ld_add_arguments(args=args, func=execute_ld_parser, parser=subparsers.add_parser("ld", parents=[parent_parser], help='prepare files with linkage disequilibrium information'))
-    parser_perf_add_arguments(args=args, func=execute_perf_parser, parser=subparsers.add_parser("perf", parents=[parent_parser], help='run performance evaluation of the MiXeR'))
-    parser_snps_add_arguments(args=args, func=execute_snps_parser, parser=subparsers.add_parser("snps", parents=[parent_parser], help='generate random sets of SNPs'))
+    parser_perf_add_arguments(func=execute_perf_parser, parser=subparsers.add_parser("perf", parents=[parent_parser], help='run performance evaluation of the MiXeR'))
+    parser_snps_add_arguments(func=execute_snps_parser, parser=subparsers.add_parser("snps", parents=[parent_parser], help='generate random sets of SNPs'))
 
-    return parser.parse_args(args)
-
-def log_header(args, subparser_name, lib):
-    defaults = vars(parse_args([subparser_name]))
-    opts = vars(args)
-    non_defaults = [x for x in opts.keys() if opts[x] != defaults[x]]
-    header = MASTHEAD
-    header += "Call: \n"
-    header += './mixer.py {} \\\n'.format(subparser_name)
-    options = ['\t--'+x.replace('_','-')+' '+(' '.join([str(y) for y in opts[x]]) if isinstance(opts[x], list) else str(opts[x])).replace('\t', '\\t')+' \\' for x in non_defaults]
-    header += '\n'.join(options).replace('True','').replace('False','')
-    header = header[0:-1]+'\n'
-    lib.log_message(header)
+    return parser
 
 def load_univariate_params_file(fname):
     data = json.loads(open(fname).read())
@@ -535,27 +430,18 @@ def calc_bivariate_qq(libbgmg, zgrid, pdf):
                        'n_snps': int(np.sum(mask)), 'sum_data_weights': float(np.sum(libbgmg.weights[mask])), 'title' : title})
     return result
 
-# helper function to debug non-json searizable types...
-def print_types(results, libbgmg):
-    if isinstance(results, dict):
-        for k, v in results.items():
-            libbgmg.log_message('{}: {}'.format(k, type(v)))
-            print_types(v, libbgmg)
-
-def execute_ld_parser(args):
-    libbgmg = LibBgmg(args.lib)
-    libbgmg.calc_ld_matrix(args.bfile, args.out, args.r2min, args.ldscore_r2min, args.ld_window, args.ld_window_kb)
-    libbgmg.log_message('Done')
-
 def initialize_mixer_plugin(args):
+    exclude_ranges = ' '.join([f'{range.chr}:{int(range.from_bp)}-{int(range.to_bp)}' for range in common.utils_cli.make_ranges(args.exclude_ranges)]) if ('exclude_ranges' in args) else ""
+
     libbgmg = LibBgmg(args.lib)
     libbgmg.init(args.bim_file, "", args.chr2use,
                  args.trait1_file if ('trait1_file' in args) else "",
                  args.trait2_file if ('trait2_file' in args) else "",
                  args.exclude if ('exclude' in args) else "",
-                 args.extract if ('extract' in args) else "")
+                 args.extract if ('extract' in args) else "",
+                 exclude_ranges)
 
-    for opt, val in convert_args_to_libbgmg_options(args, libbgmg.num_snp):
+    for opt, val in common.utils_cli.convert_args_to_libbgmg_options(args, libbgmg.num_snp):
         libbgmg.set_option(opt, val)
 
     for chr_label in args.chr2use: 
@@ -563,13 +449,13 @@ def initialize_mixer_plugin(args):
         libbgmg.set_ld_r2_csr(chr_label)
 
     if ('randprune_n' in args) and ('randprune_r2' in args):
-        libbgmg.set_weights_randprune(args.randprune_n, args.randprune_r2, exclude="", extract="")
+        libbgmg.set_weights_randprune(args.randprune_n, args.randprune_r2, 0, False, exclude="", extract="")
     
     libbgmg.set_option('diag', 0)
     return libbgmg
 
 def execute_perf_parser(args):
-    fix_and_validate_args(args)
+    common.utils_cli.fix_and_validate_args(args)
     libbgmg = initialize_mixer_plugin(args)
     params1 = UnivariateParams(pi=3e-3, sig2_beta=1e-5, sig2_zero=1.05)
     params12 = BivariateParams(params1=params1, params2=params1, pi12=2e-3, rho_beta=0.5, rho_zero=0.3)
@@ -597,7 +483,7 @@ def execute_perf_parser(args):
     libbgmg.log_message('Done')
 
 def execute_snps_parser(args):
-    fix_and_validate_args(args)
+    common.utils_cli.fix_and_validate_args(args)
     if args.seed is not None: np.random.seed(args.seed)
     libbgmg = initialize_mixer_plugin(args)
     mafvec = np.minimum(libbgmg.mafvec, 1-libbgmg.mafvec)
@@ -642,7 +528,7 @@ def init_results_struct(libbgmg, args):
     return results
 
 def execute_fit1_or_test1_parser(args):
-    fix_and_validate_args(args)
+    common.utils_cli.fix_and_validate_args(args)
     libbgmg = initialize_mixer_plugin(args)
     results = init_results_struct(libbgmg, args)
     results['analysis'] = 'univariate'
@@ -705,7 +591,7 @@ def execute_fit1_or_test1_parser(args):
     libbgmg.log_message('Done')
 
 def execute_fit2_or_test2_parser(args):
-    fix_and_validate_args(args)
+    common.utils_cli.fix_and_validate_args(args)
     libbgmg = initialize_mixer_plugin(args)
     results = init_results_struct(libbgmg, args)
     results['analysis'] = 'bivariate'

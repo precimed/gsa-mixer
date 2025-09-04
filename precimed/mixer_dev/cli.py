@@ -20,6 +20,8 @@ from scipy.sparse import csr_matrix, coo_matrix
 from common.libbgmg import LibBgmg, LibBgmgAnnot
 from gsa_mixer.utils import AnnotUnivariateParams
 import gsa_mixer.cli
+import bivar_mixer.cli
+
 from .utils import BivariateParams
 from .utils import _params_to_dict
 from .utils import _dict_to_params
@@ -57,16 +59,6 @@ _cost_calculator = {
     'convolve': _cost_calculator_convolve,
     'smplfast': _cost_calculator_smplfast,
 }
-
-def enhance_optimize_result(r, cost_n, cost_df=None, cost_fast=None):
-    # optimize_result - an instance of scipy.optimize.OptimizeResult
-    # const_n - number of genetic variants effectively contributing to the cost (sum of weights)
-    r['cost_n'] = cost_n
-    r['cost_df'] = len(r.x) if (cost_df is None) else cost_df
-    r['cost'] = r.fun
-    r['BIC'] = np.log(r['cost_n']) * r['cost_df'] + 2 * r['cost']
-    r['AIC'] =                   2 * r['cost_df'] + 2 * r['cost']
-    if cost_fast is not None: r['cost_fast'] = cost_fast
 
 def parser_add_arguments(parser, func, analysis_type):
     common.utils_cli.parser_add_argument_bim_file(parser)
@@ -258,7 +250,7 @@ def apply_univariate_fit_sequence(args, libbgmg, fit_sequence, init_params=None,
 
         libbgmg.set_option('cost_calculator', _cost_calculator_gaussian)
         if optimize_result:
-            enhance_optimize_result(optimize_result, cost_n=np.sum(libbgmg.weights), cost_fast=params.cost(libbgmg, trait))
+            bivar_mixer.cli.enhance_optimize_result(optimize_result, cost_n=np.sum(libbgmg.weights), cost_fast=params.cost(libbgmg, trait))
         optimize_result['params']=_params_to_dict(params)   # params after optimization
         optimize_result_sequence.append((fit_type, optimize_result))
         libbgmg.log_message("fit_type=={} done ({}, {})".format(fit_type, params, optimize_result))
@@ -392,7 +384,7 @@ def apply_bivariate_fit_sequence(args, libbgmg, fit_sequence):
         libbgmg.set_option('cost_calculator', _cost_calculator_gaussian)
         # cost_df=9 --- nine free parameters (incl. univariate)
         if optimize_result:
-            enhance_optimize_result(optimize_result, cost_df=9, cost_n=np.sum(libbgmg.weights), cost_fast=params.cost(libbgmg))
+            bivar_mixer.cli.enhance_optimize_result(optimize_result, cost_df=9, cost_n=np.sum(libbgmg.weights), cost_fast=params.cost(libbgmg))
             optimize_result['params']=_params_to_dict(params)   # params after optimization
             optimize_result_sequence.append((fit_type, optimize_result))
         libbgmg.log_message("fit_type=={} done ({}, {})".format(fit_type, params, optimize_result))

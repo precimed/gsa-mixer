@@ -6,6 +6,12 @@ import common.libbgmg
 
 GO_EXTEND_BP_DEFAULT = 10000
 
+def parent_parser_add_argument_out_lib_log(parent_parser):
+    parent_parser.add_argument('--argsfile', type=open, action=common.utils_cli.LoadFromFile, default=None, help="file with additional command-line arguments, e.g. those that are across all of your mixer.py runs (--lib, --bim-file and --ld-file)")
+    parent_parser.add_argument("--out", type=str, default="mixer", help="prefix for the output files")
+    parent_parser.add_argument("--lib", type=str, default="libbgmg.so", help="path to libbgmg.so plugin")
+    parent_parser.add_argument("--log", type=str, default=None, help="file to output log, defaults to <out>.log")
+
 def parser_add_argument_bim_file(parser):
     parser.add_argument("--bim-file", type=str, default=None, help="plink bim file (required argument); "
         "defines the reference set of SNPs used for the analysis. "

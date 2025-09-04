@@ -11,4 +11,11 @@ _SUFFIX = "dev-2025-02-27"
 VERSION_SHORT = "{0}.{1}".format(_MAJOR, _MINOR)
 VERSION = "{0}.{1}.{2}{3}".format(_MAJOR, _MINOR, _PATCH, _SUFFIX)
 
+MASTHEAD = "***********************************************************************\n"
+MASTHEAD += "* (c) 2016-2025 MiXeR software\n"
+MASTHEAD += "* Norwegian Centre for Mental Disorders Research / University of Oslo\n"
+MASTHEAD += "* Center for Multimodal Imaging and Genetics / UCSD\n"
+MASTHEAD += "* GNU General Public License v3\n"
+MASTHEAD += "***********************************************************************\n"
+
 # TBD: include git commit hash via $(git rev-parse HEAD)
