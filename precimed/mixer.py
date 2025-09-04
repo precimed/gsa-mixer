@@ -40,7 +40,7 @@ if __name__ == "__main__":
         bivar_mixer.cli.parser_add_arguments(func=bivar_mixer.cli.execute_fit1_or_test1_parser, parser=subparsers.add_parser("test1", parents=[parent_parser], help='test univariate MiXeR model'), analysis_type="test1")
         bivar_mixer.cli.parser_add_arguments(func=bivar_mixer.cli.execute_fit2_or_test2_parser, parser=subparsers.add_parser("fit2", parents=[parent_parser], help='fit bivariate MiXeR model'), analysis_type="fit2")
         bivar_mixer.cli.parser_add_arguments(func=bivar_mixer.cli.execute_fit2_or_test2_parser, parser=subparsers.add_parser("test2", parents=[parent_parser], help='test bivariate MiXeR model'), analysis_type="test2")
-        bivar_mixer.cli.parser_add_arguments(func=bivar_mixer.cli.execute_save_ldsc_reference_parser, parser=subparsers.add_parser("save_ldsc_reference", parents=[parent_parser], help='save ldsc reference'), analysis_type='save_ldsc_reference')
+        bivar_mixer.cli.parser_add_arguments(func=bivar_mixer.cli.execute_save_matlab_reference_parser, parser=subparsers.add_parser("matlab", parents=[parent_parser], help='save ldsc reference'), analysis_type='matlab')
         bivar_mixer.cli.parser_add_arguments(func=bivar_mixer.cli.execute_perf_parser, parser=subparsers.add_parser("perf", parents=[parent_parser], help='run performance evaluation of the MiXeR'), analysis_type='perf')
         bivar_mixer.cli.parser_add_arguments(func=bivar_mixer.cli.execute_fixed_effects_parser, parser=subparsers.add_parser("fixed_effects", parents=[parent_parser], help='find fixed effects (beta) at the level of tagging variants'), analysis_type='fixed_effects')
 

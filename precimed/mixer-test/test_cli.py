@@ -36,7 +36,7 @@ EC  test_plsa_fit2
     test_figures_plsa_fit2
 EC  test_plsa_fit1_infinitesimal[1,2]
 EC  test_plsa_fit2_infinitesimal
-    test_save_ldsc_reference
+    test_save_matlab_reference
 '''
 
 data = 'precimed/mixer-test/data'
@@ -533,17 +533,16 @@ def test_plsa_fit2_infinitesimal():
     assert out.returncode == 0
     assert os.path.exists(out_file)
 
-# py.test precimed/mixer-test/test_cli.py  -k test_save_ldsc_reference
-def test_save_ldsc_reference():
-    call=f"""python precimed/mixer.py save_ldsc_reference \
+# py.test precimed/mixer-test/test_cli.py  -k test_save_matlab_reference
+def test_save_matlab_reference():
+    call=f"""python precimed/mixer.py matlab \
 --lib src/build/lib/libbgmg.so \
 --use-complete-tag-indices \
 --bim-file {data}/g1000_eur_hm3_chr@.bim \
 --annot-file {data}/g1000_eur_hm3_chr@.annot.gz \
 --loadlib-file {data}/g1000_eur_hm3_chr@.bin \
 --annot-file {data}/g1000_eur_hm3_chr@.annot.gz \
---chr2use 21-22 --seed 123 \
---save-ldsc-reference \
+--chr2use 21-22 \
 --out {data}/ldsc_reference_chr@
 """
     out = subprocess_run(call)

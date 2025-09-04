@@ -16,6 +16,7 @@ from datetime import datetime
 from pathlib import Path
 from scipy.sparse import csr_matrix, coo_matrix
 
+import common.utils_cli
 from common.libbgmg import LibBgmg, LibBgmgAnnot
 from common.libbgmg import tagvec_as_snpvec
 
@@ -26,10 +27,6 @@ from .utils import AnnotUnivariateParametrization
 
 from common.utils import NumpyEncoder
 from common.libbgmg import _cost_calculator_sampling
-from common.utils_cli import check_input_file, make_ranges
-from common.utils_cli import fix_and_validate_args, convert_args_to_libbgmg_options
-
-GO_EXTEND_BP_DEFAULT = 10000
 
 CHR_OFFSET = np.int64(1e10)
 
@@ -45,7 +42,7 @@ def set_weights(args, libbgmg, randprune_n):
 
         if args.weights_file.lower() != 'none':
             args.save_weights = False
-            check_input_file(args, 'weights_file')
+            common.utils_cli.check_input_file(args, 'weights_file')
 
             df_weights = pd.read_csv(args.weights_file, sep='\t')
             df_weights = df_weights[df_weights['chrnumvec'].isin(set(libbgmg.chrnumvec))]
@@ -65,45 +62,14 @@ def set_weights(args, libbgmg, randprune_n):
     if (randprune_n is not None) and (randprune_n != 0):
         libbgmg.set_weights_randprune(randprune_n, args.randprune_r2, 0, not args.disable_inverse_ld_score_weights, "", "")
 
-def parser_add_argument_bim_file(parser):
-    parser.add_argument("--bim-file", type=str, default=None, help="plink bim file (required argument); "
-        "defines the reference set of SNPs used for the analysis. "
-        "Marker names must not have duplicated entries. "
-        "May contain symbol '@', which will be replaced by an actual chromosome label. ")
-
-def parser_add_argument_ld_file(parser):
-    parser.add_argument("--ld-file", type=str, default=None, help="file with linkage disequilibrium information, "
-        "generated via 'mixer.py ld' command (required argument); "
-        "may contain symbol '@', similarly to --bim-file argument. ")
-
-def parser_add_argument_chr2use(parser):
-    parser.add_argument("--chr2use", type=str, default="1-22", help="chromosome labels to use (default: %(default)s); "
-        "chromosome must be labeled by integer, i.e. X and Y are not acceptable; example of valid arguments: '1,2,3' or '1-4,12,16-20'")
-
 def parser_plsa_add_arguments(parser, func):
-    parser_add_argument_bim_file(parser)
-    parser_add_argument_ld_file(parser)
-
-    parser_add_argument_chr2use(parser)
-
-    parser.add_argument('--extract', type=str, default="", help="(optional) File with variants to include in the analysis. By default, all variants are included. This applies to GWAS tag SNPs, however LD is still computed towards the entire reference provided by --bim-file. This applies before --exclude, so a variant listed in --exclude won't be re-introduced if it's also present in --extract list.")
-    parser.add_argument('--exclude', type=str, default="", help="(optional) File with variants to exclude from the analysis.")
-    parser.add_argument('--exclude-ranges', type=str, default=['MHC'], nargs='+',
-        help='(default: %(default)s) exclude SNPs in ranges of base pair position; '
-        'the syntax is chr:from-to, for example 6:25000000-35000000; '
-        'multiple regions can be excluded; '
-        '"chr" prefix prior to chromosome label, as well as KB and MB suffices are allowed, e.g. chr6:25-35MB is a valid exclusion range. '
-        'Some special case regions are also supported, for example "--exclude-ranges MHC APOE".'
-        'To overwrite the default, pass "--exclude-ranges []".')
-
-    parser.add_argument('--use-complete-tag-indices', default=False, action="store_true", help=argparse.SUPPRESS) #"advanced option (expert use only); MiXeR software has a notion of 'tag SNPs', which are the subset of the SNPs in --bim-file with well defined GWAS z-score(s); this saves memory used by LD r2 storage, which became a rectangular matrix (LD r2 between two SNPs from the --bim-file is stored only if one of the SNPs is a tag SNP). Setting this flag enforces all --bim-file SNPs to be treated as tag SNPs, some will have undefined GWAS z-score(s), and the complete LD matrix will be save in memory.")
-    parser.add_argument('--allow-ambiguous-snps', default=False, action="store_true", help="advanced option (expert use only); a flag allowing to include A/T and C/G SNPs in fit procedure.")
-    parser.add_argument("--savelib-file", type=str, default=None, help="optional path to save the state of the libbgmg object (for faster initialization with --loadlib-file). It is highly recommended to use --use-complete-tag-indices together with --savelib-file.")
-    parser.add_argument("--loadlib-file", type=str, default=None, help="optional path to load libbgmg object; "
-        "there are several limitations if you use this option: "
-        "--bim-file argument must be the same as what was used with --savelib-file; "
-        "for plsa analysis --chr2use can be different as each chromosome has its own .bin file; "
-        "--ld-file and --use-complete-tag-indices arguments will be ignored.")
+    common.utils_cli.parser_add_argument_bim_file(parser)
+    common.utils_cli.parser_add_argument_ld_file(parser)
+    common.utils_cli.parser_add_argument_chr2use(parser)
+    common.utils_cli.parser_add_argument_extract_and_exclude(parser)
+    common.utils_cli.parser_add_argument_use_complete_tag_indices(parser)
+    common.utils_cli.parser_add_argument_allow_albiguous_snps(parser)
+    common.utils_cli.parser_add_argument_savelib_and_loadlib(parser)
 
     parser.add_argument("--trait1-file", type=str, default="", help="GWAS summary statistics for the first trait (required argument); for 'plsa' analysis it is recommended to split GWAS summary statistics per chromosome; if this is done then --trait1-file should contain symbol '@', which will be replaced by an actual chromosome label. ")
     parser.add_argument('--z1max', type=float, default=None, help="right-censoring threshold for the first trait (default: %(default)s); recommended setting: '--z1max 9.336' (equivalent to p-value 1e-20)")
@@ -123,14 +89,10 @@ def parser_plsa_add_arguments(parser, func):
 
     parser.add_argument('--kmax', type=int, default=[20000], nargs='+', help="number of sampling iterations for log-likelihod and posterior delta (default: 20000)")
 
-    # --go-file and --go-file-test must contain columns 'GO', 'GENE', 'CHR', 'FROM', 'TO'
-    parser.add_argument("--annot-file", type=str, default=None, help="(optional) path to binary annotations in LD score regression format, i.e. <path>/baseline.@.annot.gz for fitting enrichment model model. This must include the first column with all ones ('base' annotation category covering the entire genome).")
-    parser.add_argument("--annot-file-test", type=str, default=None, help="(optional) path to binary annotations in LD score regression format, i.e. <path>/baseline.@.annot.gz for evaluating enrichment.  If provided, enrichment scores computed for --annot-file-test will be saved to <out>.annot_test_enrich.csv.")
-    parser.add_argument("--go-file", type=str, default=None, help="(optional) path to GO antology file for fitting enrichment model model. The format is described in the documentation. 'base' category that covers entire genome will be added automatically.")
-    parser.add_argument("--go-file-test", type=str, default=None, help="(optional) path to an additional  GO antology file for evaluating enrichment, same convention as --go-file. If provided, enrichment scores computed for --go-test-file will be saved to <out>.go_test_enrich.csv")
+    common.utils_cli.parser_add_argument_annot_file(parser, annot_file_test=True)
+    common.utils_cli.parser_add_argument_go_file(parser, go_file_test=True)
     parser.add_argument("--calc-loglike-diff-go-test", default=None, choices=['fast', 'full'], help="algorithm for computation of the loglike_diff column in <out>.go_test_enrich.csv")
     parser.add_argument("--go-all-genes-label", type=str, default='coding_genes', help="reference gene-set to calibrate fold enrichment, e.g. allowing to compute enrichment w.r.t. the set of all coding genes (default: %(default)s)")
-    parser.add_argument("--go-extend-bp", type=int, default=GO_EXTEND_BP_DEFAULT, help="extends each gene by this many base pairs, defining a symmetric window up and downstream (default: %(default)s)")
     parser.add_argument('--enable-faster-gradient-calculation', default=False, action="store_true", help=argparse.SUPPRESS) #"advanced option (expert use only); saves --annot-file and --go-file as LDSC reference")
     
     parser.add_argument('--sig2-zeroL', default=0.0, type=float, help="(optional) initial value or constraint for 'sig2_zeroL' parameter (default: %(default)s); make sure to change initial value of this parameter to 1e-8 if '--fit sig2-zeroL'")
@@ -170,7 +132,7 @@ def parser_plsa_add_arguments(parser, func):
 
 def parser_split_sumstats_add_arguments(func, parser):
     parser.add_argument("--trait1-file", type=str, default="", help="GWAS summary statistics for the first trait (required argument);")
-    parser_add_argument_chr2use(parser)
+    common.utils_cli.parser_add_argument_chr2use(parser)
     parser.set_defaults(func=func)
 
 def parser_snps_add_arguments(func, parser):
@@ -179,9 +141,9 @@ def parser_snps_add_arguments(func, parser):
     parser.add_argument('--subset', type=int, default=2000000, help="number of SNPs to randomly select (default: %(default)s)")
     parser.add_argument('--seed', type=np.uint32, default=None, help="random seed (default: %(default)s)")
 
-    parser_add_argument_bim_file(parser)
-    parser_add_argument_ld_file(parser)
-    parser_add_argument_chr2use(parser)
+    common.utils_cli.parser_add_argument_bim_file(parser)
+    common.utils_cli.parser_add_argument_ld_file(parser)
+    common.utils_cli.parser_add_argument_chr2use(parser)
 
     parser.set_defaults(func=func)
 
@@ -423,7 +385,7 @@ def find_genemat(go_file, go_extend_bp, bim_file, chr_labels, lib_file_suffix, l
     return (genemat, genenames, bim)
 
 def initialize_mixer_plugin(args, context_id, trait1_file, trait2_file, randprune_n, loadlib_file, savelib_file, chr_labels, lib_file_suffix):
-    exclude_ranges = ' '.join([f'{range.chr}:{int(range.from_bp)}-{int(range.to_bp)}' for range in make_ranges(args.exclude_ranges)]) if ('exclude_ranges' in args) else ""
+    exclude_ranges = ' '.join([f'{range.chr}:{int(range.from_bp)}-{int(range.to_bp)}' for range in common.utils_cli.make_ranges(args.exclude_ranges)]) if ('exclude_ranges' in args) else ""
 
     libbgmg = LibBgmgAnnot(args.lib, context_id=context_id)
     if loadlib_file:
@@ -440,7 +402,7 @@ def initialize_mixer_plugin(args, context_id, trait1_file, trait2_file, randprun
         if trait2_file: libbgmg.read_trait_file(2, trait2_file, args.exclude if ('exclude' in args) else "", args.extract if ('extract' in args) else "", exclude_ranges)
         libbgmg.set_option('cost_calculator', _cost_calculator_sampling)
 
-        for opt, val in convert_args_to_libbgmg_options(args):
+        for opt, val in common.utils_cli.convert_args_to_libbgmg_options(args):
             libbgmg.set_option(opt, val)
 
         set_weights(args, libbgmg, randprune_n)
@@ -458,7 +420,7 @@ def initialize_mixer_plugin(args, context_id, trait1_file, trait2_file, randprun
                     exclude_ranges)
         libbgmg.set_option('cost_calculator', _cost_calculator_sampling)
 
-        for opt, val in convert_args_to_libbgmg_options(args):
+        for opt, val in common.utils_cli.convert_args_to_libbgmg_options(args):
             libbgmg.set_option(opt, val)
 
         for chr_label in chr_labels: 
@@ -485,7 +447,7 @@ def initialize_mixer_plugin(args, context_id, trait1_file, trait2_file, randprun
     return libbgmg
 
 def execute_snps_parser(args):
-    fix_and_validate_args(args)
+    common.utils_cli.fix_and_validate_args(args)
 
     libbgmg = initialize_mixer_plugin(args, 0, "", "", None, None, None, args.chr2use, '@')
     mafvec = np.minimum(libbgmg.mafvec, 1-libbgmg.mafvec)
@@ -661,7 +623,7 @@ def compute_geneset_enrichment(go_file_test, args, exclude_ranges, libbgmg_vec, 
 
 def execute_plsa_parser(args):
     libbgmg = LibBgmg(args.lib)
-    fix_and_validate_args(args)
+    common.utils_cli.fix_and_validate_args(args)
     if (args.load_params_file is None) and (args.adam_disable):
         raise ValueError('--load-params-file is required for --adam-disable')
 
@@ -690,7 +652,7 @@ def execute_plsa_parser(args):
             raise ValueError('--annot-file-test/--go-file-test require either --load-params-file or --load-baseline-params-file to be provided')
         if (args.load_baseline_params_file is None) and (args.load_params_file is not None):
             args.load_baseline_params_file = args.load_params_file
-        check_input_file(args, 'load_baseline_params_file')
+        common.utils_cli.check_input_file(args, 'load_baseline_params_file')
 
     libbgmg_vec = []
     annot_snps = 0; gene_snps = 0
@@ -812,7 +774,7 @@ def execute_plsa_parser(args):
         base_params = pd.read_csv(fname, sep='\t')
 
     # calculate fold enrichments of heritability
-    exclude_ranges = make_ranges(args.exclude_ranges)
+    exclude_ranges = common.utils_cli.make_ranges(args.exclude_ranges)
     if args.annot_file_test:
         df_enrich = compute_annot_enrichment(args.annot_file_test, args.chr2use, exclude_ranges, libbgmg_vec, params, base_params)
         df_enrich.to_csv(args.out + '.annot_test_enrich.csv', sep='\t', index=False)
@@ -867,7 +829,7 @@ def execute_plsa_parser(args):
     Path(args.out + '.done').touch()
 
 def execute_split_sumstats_parser(args):
-    fix_and_validate_args(args)
+    common.utils_cli.fix_and_validate_args(args)
     if '@' not in args.out:
         raise(ValueError('--out must contain @ symbol for "mixer.py split_sumstats" call'))
     print(f'reading {args.trait1_file}...')
