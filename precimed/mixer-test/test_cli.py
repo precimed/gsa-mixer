@@ -45,20 +45,20 @@ def subprocess_run(call):
 
 # py.test precimed/mixer-test/test_cli.py  -k version
 def test_version():
-    call=f'python precimed/mixer.py --version'
+    call=f'python precimed/mixer_dev.py --version'
     out = subprocess_run(call)
     assert out.returncode == 0
 
 # py.test precimed/mixer-test/test_cli.py  -k test_ld
 @pytest.mark.parametrize("chr_label", [21, 22])
 def test_ld(chr_label):
-    call=f'python precimed/mixer.py ld --bfile {data}/g1000_eur_hm3_chr{chr_label} --r2min 0.05 --ldscore-r2min 0.01 --lib src/build/lib/libbgmg.so  --out {data}/g1000_eur_hm3_chr{chr_label}.ld --ld-window-kb 10000'
+    call=f'python precimed/mixer_dev.py ld --bfile {data}/g1000_eur_hm3_chr{chr_label} --r2min 0.05 --ldscore-r2min 0.01 --lib src/build/lib/libbgmg.so  --out {data}/g1000_eur_hm3_chr{chr_label}.ld --ld-window-kb 10000'
     out = subprocess_run(call)
     assert out.returncode == 0
 
 # py.test precimed/mixer-test/test_cli.py  -k test_snps
 def test_snps():
-    call=f'python precimed/mixer.py snps --bim-file {data}/g1000_eur_hm3_chr@.bim --ld-file {data}/g1000_eur_hm3_chr@.ld --chr2use 21-22 --subset 20000 --lib src/build/lib/libbgmg.so  --out {data}/g1000_eur_hm3_chr@.snps --seed 123'
+    call=f'python precimed/mixer_dev.py snps --bim-file {data}/g1000_eur_hm3_chr@.bim --ld-file {data}/g1000_eur_hm3_chr@.ld --chr2use 21-22 --subset 20000 --lib src/build/lib/libbgmg.so  --out {data}/g1000_eur_hm3_chr@.snps --seed 123'
     out = subprocess_run(call)
     assert out.returncode == 0
 
@@ -66,7 +66,7 @@ def test_snps():
 def test_savelib_file():
     out_file = f'{data}/g1000_eur_hm3_chr21to22.bin'
     if os.path.exists(out_file): os.remove(out_file)
-    call=f"""python precimed/mixer.py fit1 \
+    call=f"""python precimed/mixer_dev.py fit1 \
 --lib src/build/lib/libbgmg.so \
 --use-complete-tag-indices --exclude-ranges [] \
 --savelib-file {data}/g1000_eur_hm3_chr21to22.bin \
@@ -84,7 +84,7 @@ def test_savelib_file():
 def test_fit1(trait_index):
     out_file = f'{data}/trait{trait_index}.fit1.json'
     if os.path.exists(out_file): os.remove(out_file)
-    call=f"""python precimed/mixer.py fit1 \
+    call=f"""python precimed/mixer_dev.py fit1 \
 --lib src/build/lib/libbgmg.so \
 --trait1-file {data}/trait{trait_index}.sumstats.gz \
 --bim-file {data}/g1000_eur_hm3_chr@.bim \
@@ -105,7 +105,7 @@ def test_fit1(trait_index):
 def test_test1(trait_index):
     out_file = f'{data}/trait{trait_index}.test1.json'
     if os.path.exists(out_file): os.remove(out_file)
-    call=f"""python precimed/mixer.py test1 \
+    call=f"""python precimed/mixer_dev.py test1 \
 --lib src/build/lib/libbgmg.so \
 --trait1-file {data}/trait{trait_index}.sumstats.gz \
 --load-params-file {data}/trait{trait_index}.fit1.json \
@@ -123,7 +123,7 @@ def test_test1(trait_index):
 def test_figures_fit1():
     out_file = f'{data}/fit1.csv'
     if os.path.exists(out_file): os.remove(out_file)
-    call=f"""python precimed/mixer_figures.py one \
+    call=f"""python precimed/mixer_dev.py figures_one \
 --json {data}/trait1.fit1.json {data}/trait2.fit1.json \
 --out {data}/fit1 --trait1 trait_one trait_two --ext svg
 """
@@ -137,7 +137,7 @@ def test_figures_test1(trait_index):
     out_files = [f'{data}/test{trait_index}.csv', f'{data}/test{trait_index}.power.svg', f'{data}/test{trait_index}.power.csv', f'{data}/test{trait_index}.qq.svg', f'{data}/test{trait_index}.qqbin.svg']
     for out_file in out_files:
         if os.path.exists(out_file): os.remove(out_file)
-    call=f"""python precimed/mixer_figures.py one \
+    call=f"""python precimed/mixer_dev.py figures_one \
 --json {data}/trait{trait_index}.test1.json \
 --out {data}/test{trait_index} --trait1 trait --ext svg
 """
@@ -149,7 +149,7 @@ def test_figures_test1(trait_index):
 def test_fit2():
     out_file = f'{data}/fit2.json'
     if os.path.exists(out_file): os.remove(out_file)
-    call=f"""python precimed/mixer.py fit2 \
+    call=f"""python precimed/mixer_dev.py fit2 \
 --lib src/build/lib/libbgmg.so \
 --trait1-file {data}/trait1.sumstats.gz \
 --trait2-file {data}/trait2.sumstats.gz \
@@ -172,7 +172,7 @@ def test_fit2():
 def test_fit2_region():
     out_file = f'{data}/fit2_region.json'
     if os.path.exists(out_file): os.remove(out_file)
-    call=f"""python precimed/mixer.py fit2 \
+    call=f"""python precimed/mixer_dev.py fit2 \
 --lib src/build/lib/libbgmg.so \
 --trait1-file {data}/trait1.sumstats.gz \
 --trait2-file {data}/trait2.sumstats.gz \
@@ -193,7 +193,7 @@ def test_fit2_region():
 def test_test2():
     out_file = f'{data}/test2.json'
     if os.path.exists(out_file): os.remove(out_file)
-    call=f"""python precimed/mixer.py test2 \
+    call=f"""python precimed/mixer_dev.py test2 \
 --lib src/build/lib/libbgmg.so \
 --trait1-file {data}/trait1.sumstats.gz \
 --trait2-file {data}/trait2.sumstats.gz \
@@ -217,7 +217,7 @@ def test_figures_fit2():
     for out_file in out_files:
         if os.path.exists(out_file): os.remove(out_file)
     
-    call=f"""python precimed/mixer_figures.py two \
+    call=f"""python precimed/mixer_dev.py figures_two \
 --json-fit {data}/fit2.json --json-test {data}/test2.json \
 --out {data}/fit2 --trait1 trait_one --trait2 trait_two --ext svg
 """
@@ -231,7 +231,7 @@ def test_split_sumstats():
         out_files = [f'{data}/{trait}.chr21.sumstats.gz', f'{data}/{trait}.chr22.sumstats.gz']
         for out_file in out_files:
             if os.path.exists(out_file): os.remove(out_file)
-        call = f"python precimed/mixer.py split_sumstats --trait1-file precimed/mixer-test/data/{trait}.sumstats.gz --out precimed/mixer-test/data/{trait}.chr@.sumstats.gz --chr2use 21-22"
+        call = f"python precimed/mixer_dev.py split_sumstats --trait1-file precimed/mixer-test/data/{trait}.sumstats.gz --out precimed/mixer-test/data/{trait}.chr@.sumstats.gz --chr2use 21-22"
         out = subprocess_run(call)
         assert out.returncode == 0
         for out_file in out_files: 
@@ -242,7 +242,7 @@ def test_plsa_savelib_file():
     out_files = [f'{data}/g1000_eur_hm3_chr{chri}.bin' for chri in [21,22]]
     for out_file in out_files:
         if os.path.exists(out_file): os.remove(out_file)
-    call=f"""python precimed/mixer.py plsa \
+    call=f"""python precimed/mixer_dev.py plsa \
 --lib src/build/lib/libbgmg.so \
 --use-complete-tag-indices --exclude-ranges [] \
 --savelib-file {data}/g1000_eur_hm3_chr@.bin \
@@ -263,7 +263,7 @@ def run_plsa(baseline, trait, se_samples=None, go_all_genes_label=None):
     for out_file in out_files:
         if os.path.exists(out_file): os.remove(out_file)
 
-    call=f"""python precimed/mixer.py plsa \
+    call=f"""python precimed/mixer_dev.py plsa \
 --lib src/build/lib/libbgmg.so \
 --trait1-file {data}/{trait}.chr@.sumstats.gz \
 --use-complete-tag-indices \
@@ -314,7 +314,7 @@ def run_plsa_model_vs_baseline_enrichment(calc_loglike_diff_go_test):
     for out_file in out_files:
         if os.path.exists(out_file): os.remove(out_file)
 
-    call=f"""python precimed/mixer.py plsa \
+    call=f"""python precimed/mixer_dev.py plsa \
 --lib src/build/lib/libbgmg.so \
 --trait1-file {data}/{trait}.chr@.sumstats.gz \
 --use-complete-tag-indices \
@@ -350,7 +350,7 @@ def test_plsa_model_vs_baseline_enrichment_full_calc():
 def test_plsa_fit1(trait_index):
     out_file = f'{data}/plsa_trait{trait_index}_baseline.fit1.json'
     if os.path.exists(out_file): os.remove(out_file)
-    call=f"""python precimed/mixer.py fit1 \
+    call=f"""python precimed/mixer_dev.py fit1 \
 --lib src/build/lib/libbgmg.so \
 --trait1-file {data}/trait{trait_index}.sumstats.gz \
 --load-params-file {data}/plsa_trait{trait_index}_baseline.json \
@@ -376,7 +376,7 @@ def test_plsa_test1():
     out_file = f'{data}/plsa_trait1_baseline.test1.json'
     if os.path.exists(out_file): os.remove(out_file)
     os.system(f"zcat {data}/trait1.sumstats.gz | awk 'NR % 2 == 1' | gzip > {data}/trait1.filtered.sumstats.gz")
-    call=f"""python precimed/mixer.py test1 \
+    call=f"""python precimed/mixer_dev.py test1 \
 --lib src/build/lib/libbgmg.so \
 --trait1-file {data}/trait1.filtered.sumstats.gz \
 --load-params-file {data}/plsa_trait1_baseline.fit1.json \
@@ -397,7 +397,7 @@ def test_plsa_test1():
 def test_figures_plsa_fit1():
     out_file = f'{data}/plsa_trait1_baseline.fit1.csv'
     if os.path.exists(out_file): os.remove(out_file)
-    call=f"""python precimed/mixer_figures.py one \
+    call=f"""python precimed/mixer_dev.py figures_one \
 --json {data}/plsa_trait1_baseline.fit1.json  \
 --out {data}/plsa_trait1_baseline.fit1 --trait1 trait_one --ext svg
 """
@@ -414,7 +414,7 @@ def test_figures_plsa_test1():
                  f'{data}/plsa_trait1_baseline.test1.qqbin.svg']
     for out_file in out_files:
         if os.path.exists(out_file): os.remove(out_file)
-    call=f"""python precimed/mixer_figures.py one \
+    call=f"""python precimed/mixer_dev.py figures_one \
 --json {data}/trait1.test1.json \
 --out {data}/plsa_trait1_baseline.test1 --trait1 trait_one --ext svg
 """
@@ -426,7 +426,7 @@ def test_figures_plsa_test1():
 def test_plsa_fit2():
     out_file = f'{data}/plsa_baseline.fit2.json'
     if os.path.exists(out_file): os.remove(out_file)
-    call=f"""python precimed/mixer.py fit2 \
+    call=f"""python precimed/mixer_dev.py fit2 \
 --lib src/build/lib/libbgmg.so \
 --trait1-file {data}/trait1.sumstats.gz \
 --trait2-file {data}/trait2.sumstats.gz \
@@ -453,7 +453,7 @@ def test_plsa_test2():
     if os.path.exists(out_file): os.remove(out_file)
     os.system(f"zcat {data}/trait1.sumstats.gz | awk 'NR % 2 == 1' | gzip > {data}/trait1.filtered.sumstats.gz")
     os.system(f"zcat {data}/trait2.sumstats.gz | awk 'NR % 2 == 1' | gzip > {data}/trait2.filtered.sumstats.gz")
-    call=f"""python precimed/mixer.py test2 \
+    call=f"""python precimed/mixer_dev.py test2 \
 --lib src/build/lib/libbgmg.so \
 --trait1-file {data}/trait1.filtered.sumstats.gz \
 --trait2-file {data}/trait2.filtered.sumstats.gz \
@@ -477,7 +477,7 @@ def test_figures_plsa_fit2():
     for out_file in out_files:
         if os.path.exists(out_file): os.remove(out_file)
     
-    call=f"""python precimed/mixer_figures.py two \
+    call=f"""python precimed/mixer_dev.py figures_two \
 --json-fit {data}/plsa_baseline.fit2.json --json-test {data}/plsa_baseline.test2.json \
 --out {data}/plsa_baseline_fit2 --trait1 trait_one --trait2 trait_two --ext svg
 """
@@ -490,7 +490,7 @@ def test_figures_plsa_fit2():
 def test_plsa_fit1_infinitesimal(trait_index):
     out_file = f'{data}/plsa_trait{trait_index}_infinitesimal.fit1.json'
     if os.path.exists(out_file): os.remove(out_file)
-    call=f"""python precimed/mixer.py fit1 \
+    call=f"""python precimed/mixer_dev.py fit1 \
 --lib src/build/lib/libbgmg.so \
 --trait1-file {data}/trait{trait_index}.sumstats.gz \
 --load-params-file {data}/plsa_trait{trait_index}_baseline.json \
@@ -513,7 +513,7 @@ def test_plsa_fit1_infinitesimal(trait_index):
 def test_plsa_fit2_infinitesimal():
     out_file = f'{data}/plsa_infinitesimal.fit2.json'
     if os.path.exists(out_file): os.remove(out_file)
-    call=f"""python precimed/mixer.py fit2 \
+    call=f"""python precimed/mixer_dev.py fit2 \
 --lib src/build/lib/libbgmg.so \
 --trait1-file {data}/trait1.sumstats.gz \
 --trait2-file {data}/trait2.sumstats.gz \
@@ -535,7 +535,7 @@ def test_plsa_fit2_infinitesimal():
 
 # py.test precimed/mixer-test/test_cli.py  -k test_save_matlab_reference
 def test_save_matlab_reference():
-    call=f"""python precimed/mixer.py matlab \
+    call=f"""python precimed/mixer_dev.py matlab \
 --lib src/build/lib/libbgmg.so \
 --use-complete-tag-indices \
 --bim-file {data}/g1000_eur_hm3_chr@.bim \

@@ -4,9 +4,9 @@ import logging
 import sys
 
 from version import VERSION as __version__
-from bivar_mixer.figures import generate_args_parser
 
 if __name__ == "__main__":
+    raise NotImplementedError()
     logging.getLogger().setLevel(logging.INFO)
     parser = generate_args_parser(__version__)
     if len(sys.argv)==1:

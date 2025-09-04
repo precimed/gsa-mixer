@@ -381,8 +381,8 @@ def generate_args_parser(__version__=None):
     parent_parser.add_argument('--statistic', type=str, nargs='+', default=["point_estimate"], choices=["point_estimate", "mean", "median", "std", "min", "max"], help="Which statistic to show in the tables and on the Venn diagrams. Can have multiple values. In the case of venn diagram, the first value (typically 'point_estimate' or 'mean') indicate the size of the venn diagram; the second value (optional, typically 'std') allow to include error bars on the Venn diagramm.")
 
     subparsers = parser.add_subparsers()
-    parser_one_add_arguments(func=execute_one_parser, parser=subparsers.add_parser("one", parents=[parent_parser], help='produce figures for univariate analysis'))
-    parser_two_add_arguments(func=execute_two_parser, parser=subparsers.add_parser("two", parents=[parent_parser], help='produce figures for cross-trait analysis'))
+    parser_one_add_arguments(func=execute_one_parser, parser=subparsers.add_parser("figures_one", parents=[parent_parser], help='produce figures for univariate analysis'))
+    parser_two_add_arguments(func=execute_two_parser, parser=subparsers.add_parser("figures_two", parents=[parent_parser], help='produce figures for cross-trait analysis'))
     parser_combine_add_arguments(func=execute_combine_parser, parser=subparsers.add_parser("combine", parents=[parent_parser], help='combine .json files MiXeR runs (e.g. with different --extract setting)'))
 
     return parser
@@ -500,15 +500,6 @@ def parse_val2use(val2use_arg):
             val2use.append(a.strip())
     if np.any([not x.isdigit() for x in val2use]): raise ValueError('Value labels must be integer: {}'.format(val2use_arg))
     return val2use
-
-'''
-python ~/github/mixer/precimed/mixer_figures.py combine --json PGC_SCZ_2014_EUR.fit.rep@.json  --out combined/PGC_SCZ_2014_EUR.fit
-python ~/github/mixer/precimed/mixer_figures.py one --json combined/PGC_SCZ_2014_EUR.fit.json  --out combined/PGC_SCZ_2014_EUR.fit
-
-python ~/github/mixer/precimed/mixer_figures.py combine --json PGC_SCZ_2014_EUR_vs_PGC_BIP_2016.fit.rep@.json  --out combined/PGC_SCZ_2014_EUR_vs_PGC_BIP_2016.fit
-python ~/github/mixer/precimed/mixer_figures.py combine --json PGC_SCZ_2014_EUR_vs_PGC_BIP_2016.test.rep@.json  --out combined/PGC_SCZ_2014_EUR_vs_PGC_BIP_2016.test
-python ~/github/mixer/precimed/mixer_figures.py two --json-fit combined/PGC_SCZ_2014_EUR_vs_PGC_BIP_2016.fit.json --json-test combined/PGC_SCZ_2014_EUR_vs_PGC_BIP_2016.test.json --out combined/PGC_SCZ_2014_EUR_vs_PGC_BIP_2016 --statistic mean std
-'''
 
 def execute_combine_parser(args):
     args.rep2use = parse_val2use(args.rep2use)
