@@ -135,18 +135,6 @@ def parser_split_sumstats_add_arguments(func, parser):
     common.utils_cli.parser_add_argument_chr2use(parser)
     parser.set_defaults(func=func)
 
-def parser_snps_add_arguments(func, parser):
-    parser.add_argument('--r2', type=float, default=None, help="LD r2 threshold for prunning SNPs (default: %(default)s)")
-    parser.add_argument('--maf', type=float, default=None, help="minor allele frequence (MAF) threshold (default: %(default)s)")
-    parser.add_argument('--subset', type=int, default=2000000, help="number of SNPs to randomly select (default: %(default)s)")
-    parser.add_argument('--seed', type=np.uint32, default=None, help="random seed (default: %(default)s)")
-
-    common.utils_cli.parser_add_argument_bim_file(parser)
-    common.utils_cli.parser_add_argument_ld_file(parser)
-    common.utils_cli.parser_add_argument_chr2use(parser)
-
-    parser.set_defaults(func=func)
-
 def parser_ld_add_arguments(func, parser):
     parser.add_argument("--bfile", type=str, default=None, help="path to plink bfile (required argument)")
     parser.add_argument('--r2min', type=float, default=0.05, help="r2 values above this threshold will be stored in sparse LD format (default: %(default)s)")
@@ -445,46 +433,6 @@ def initialize_mixer_plugin(args, context_id, trait1_file, trait2_file, randprun
     if bim is not None: libbgmg.bim = bim
 
     return libbgmg
-
-def execute_snps_parser(args):
-    common.utils_cli.fix_and_validate_args(args)
-
-    libbgmg = initialize_mixer_plugin(args, 0, "", "", None, None, None, args.chr2use, '@')
-    mafvec = np.minimum(libbgmg.mafvec, 1-libbgmg.mafvec)
-
-    libbgmg.log_message('Load {}...'.format(args.bim_file))
-    ref=pd.concat([pd.read_csv(args.bim_file.replace('@', str(chr_label)), sep='\t', header=None, names='CHR SNP GP BP A1 A2'.split()) for chr_label in args.chr2use])
-    libbgmg.log_message('{} SNPs in total'.format(len(ref)))
-
-    # step0 - generate random values for clumping (this is a way to implement random pruning)
-    buf = np.random.rand(libbgmg.num_tag,)
-    
-    # step1 - filter SNPs below MAF threshold
-    if args.maf:
-        buf[mafvec<args.maf] = np.nan
-        libbgmg.log_message('{} SNPs pass --maf {} threshold'.format(np.sum(np.isfinite(buf)), args.maf))
-    
-    # step2 - select a random subset of SNPs
-    if args.subset > 0:
-        indices = list(np.where(np.isfinite(buf))[0])
-        sample = random.sample(indices, min(args.subset, len(indices)))
-        mask = np.ones(buf.shape); mask[sample] = 0
-        buf[mask == 1] = np.nan
-        libbgmg.log_message('{} SNPs randomly selected (--subset)'.format(np.sum(np.isfinite(buf))))
-
-    # step3 - further prune SNPs at certain r2 threshold
-    if args.r2:
-        buf = libbgmg.perform_ld_clump(args.r2, buf.flatten()) 
-        libbgmg.log_message('{} SNPs pass random prunning at --r2 {} threshold'.format(np.sum(np.isfinite(buf)), args.r2))
-
-    # step4 - save results
-    ref.SNP[np.isfinite(buf)].to_csv(args.out, index=False, header=False)
-    libbgmg.log_message('Result saved to {}'.format(args.out))
-
-    # step 5 - save .info file
-    #pd.DataFrame({'chrnumvec': libbgmg.chrnumvec, 'mafvec': libbgmg.mafvec, 'tldvec': libbgmg.ld_sum_r2}).to_csv(args.out + '.info', sep='\t', index=False)
-    
-    libbgmg.log_message('Done')
 
 def init_results_struct(args, libbgmg_vec=None):
     results = {}
