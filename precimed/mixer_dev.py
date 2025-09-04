@@ -34,12 +34,12 @@ if __name__ == "__main__":
 
         subparsers = parser.add_subparsers()
 
-        if sys.argv[1] in ['ld', 'snps', 'plsa', 'split_sumstats']:
+        if sys.argv[1] in ['ld', 'plsa', 'split_sumstats']:
             gsa_mixer.cli.parser_ld_add_arguments(func=gsa_mixer.cli.execute_ld_parser, parser=subparsers.add_parser("ld", parents=[parent_parser], help='prepare files with linkage disequilibrium information'))
-            gsa_mixer.cli.parser_snps_add_arguments(func=gsa_mixer.cli.execute_snps_parser, parser=subparsers.add_parser("snps", parents=[parent_parser], help='generate random sets of SNPs'))
             gsa_mixer.cli.parser_plsa_add_arguments(func=gsa_mixer.cli.execute_plsa_parser, parser=subparsers.add_parser("plsa", parents=[parent_parser], help='fit PLSA model'))
             gsa_mixer.cli.parser_split_sumstats_add_arguments(func=gsa_mixer.cli.execute_split_sumstats_parser, parser=subparsers.add_parser("split_sumstats", parents=[parent_parser], help='split summary statistics file per-chromosome'))
-        elif sys.argv[1] in ['fit1', 'test1', 'fit2', 'test2', 'matlab', 'perf', 'fixed_effects']:
+        elif sys.argv[1] in ['snps', 'fit1', 'test1', 'fit2', 'test2', 'matlab', 'perf', 'fixed_effects']:
+            mixer_dev.cli.parser_snps_add_arguments(func=mixer_dev.cli.execute_snps_parser, parser=subparsers.add_parser("snps", parents=[parent_parser], help='generate random sets of SNPs'))
             mixer_dev.cli.parser_add_arguments(func=mixer_dev.cli.execute_fit1_or_test1_parser, parser=subparsers.add_parser("fit1", parents=[parent_parser], help='fit univariate MiXeR model'), analysis_type="fit1")
             mixer_dev.cli.parser_add_arguments(func=mixer_dev.cli.execute_fit1_or_test1_parser, parser=subparsers.add_parser("test1", parents=[parent_parser], help='test univariate MiXeR model'), analysis_type="test1")
             mixer_dev.cli.parser_add_arguments(func=mixer_dev.cli.execute_fit2_or_test2_parser, parser=subparsers.add_parser("fit2", parents=[parent_parser], help='fit bivariate MiXeR model'), analysis_type="fit2")
