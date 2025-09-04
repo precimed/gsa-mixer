@@ -4,7 +4,7 @@ import logging
 import sys
 
 from version import VERSION as __version__
-from mixer.figures import generate_args_parser
+from bivar_mixer.figures import generate_args_parser
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
