@@ -26,7 +26,7 @@ from scipy.stats import multivariate_normal
 
 from .utils import _calculate_bivariate_uncertainty_funcs
 from .utils import _dict_to_params
-from .utils import NumpyEncoder
+from common.utils import NumpyEncoder
 
 def make_qq_plot(qq, ci=True, ylim=7.3, xlim=7.3):
     hv_logp = np.array(qq['hv_logp']).astype(float)

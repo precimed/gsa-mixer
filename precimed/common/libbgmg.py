@@ -5,6 +5,17 @@ import six
 import logging
 import numpy as np
 
+_auxoption_none = 0
+_auxoption_ezvec2 = 1
+_auxoption_tagpdf = 2
+_auxoption_tagpdferr = 3
+_auxoption_gradients = 4
+
+_cost_calculator_sampling = 0
+_cost_calculator_gaussian = 1
+_cost_calculator_convolve = 2
+_cost_calculator_smplfast = 3
+
 def _p2n(arg_value):  # python2native
     if arg_value==None:
         return ctypes.create_string_buffer("".encode('utf-8'))
