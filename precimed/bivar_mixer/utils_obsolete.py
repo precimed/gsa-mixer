@@ -1,5 +1,7 @@
 import numpy as np
 
+from common.utils import _arctanh_tanh_converter, _log_exp_converter
+
 class UnivariateParams_obsolete(object):
     def __init__(self, pi, sig2_beta, sig2_zeroA):
         self._pi = pi

@@ -5,7 +5,6 @@ sys.path.append(os.getcwd())
 import pandas as pd
 import numpy as np
 import pytest
-from common import libbgmg
 
 # features:
 # E - extract
@@ -536,7 +535,7 @@ def test_plsa_fit2_infinitesimal():
 
 # py.test precimed/mixer-test/test_cli.py  -k test_save_ldsc_reference
 def test_save_ldsc_reference():
-    call=f"""python precimed/mixer.py plsa \
+    call=f"""python precimed/mixer.py save_ldsc_reference \
 --lib src/build/lib/libbgmg.so \
 --use-complete-tag-indices \
 --bim-file {data}/g1000_eur_hm3_chr@.bim \
