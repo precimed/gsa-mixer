@@ -33,6 +33,7 @@ from .utils import BivariateParametrization_constUNIVARIATE_infinitesimal       
 
 from common.libbgmg import _auxoption_none, _auxoption_tagpdf
 from common.libbgmg import _cost_calculator_convolve, _cost_calculator_gaussian, _cost_calculator_sampling, _cost_calculator_smplfast
+from common.libbgmg import tagvec_as_snpvec
 
 from .utils import _calculate_univariate_uncertainty
 from .utils import _calculate_univariate_uncertainty_funcs
@@ -45,14 +46,9 @@ from .utils import calc_power_curve
 from .utils import calc_bivariate_qq
 from .utils import calc_bivariate_pdf
 
-from common.utils import NumpyEncoder
+from common.utils_cli import fix_and_validate_args
 
-MASTHEAD = "***********************************************************************\n"
-MASTHEAD += "* (c) 2016-2024 MiXeR software - Univariate and Bivariate Causal Mixture for GWAS\n"
-MASTHEAD += "* Norwegian Centre for Mental Disorders Research / University of Oslo\n"
-MASTHEAD += "* Center for Multimodal Imaging and Genetics / UCSD\n"
-MASTHEAD += "* GNU General Public License v3\n"
-MASTHEAD += "***********************************************************************\n"
+from common.utils import NumpyEncoder
 
 _cost_calculator = {
     'gaussian': _cost_calculator_gaussian, 
@@ -70,146 +66,6 @@ def enhance_optimize_result(r, cost_n, cost_df=None, cost_fast=None):
     r['BIC'] = np.log(r['cost_n']) * r['cost_df'] + 2 * r['cost']
     r['AIC'] =                   2 * r['cost_df'] + 2 * r['cost']
     if cost_fast is not None: r['cost_fast'] = cost_fast
-
-def check_input_file(args, argname, chri=None):
-    arg_dict = vars(args)
-    if (argname in arg_dict) and arg_dict[argname]:
-        argval = arg_dict[argname]
-        if chri: argval=argval.replace('@', str(chri))
-        if not os.path.isfile(argval): raise ValueError("Input file --{a} does not exist: {f}".format(a=argname, f=argval))
-
-def fix_chr2use_arg(args, argname="chr2use"):
-    arg_dict = vars(args)
-    if argname not in arg_dict : return
-    if not arg_dict[argname]: arg_dict[argname] = []; return
-    chr2use_arg = arg_dict[argname]
-    chr2use = []
-    if chr2use_arg is not None:
-        for a in chr2use_arg.split(","):
-            if "-" in a:
-                start, end = [int(x) for x in a.split("-")]
-                chr2use += [str(x) for x in range(start, end+1)]
-            else:
-                chr2use.append(a.strip())
-        if np.any([not x.isdigit() for x in chr2use]): raise ValueError('Chromosome labels must be integer')
-    arg_dict[argname] = [int(x) for x in chr2use]
-
-def make_ranges(args_exclude_ranges):
-    # Interpret --exclude-ranges input
-    ChromosomeRange = collections.namedtuple('ChromosomeRange', ['chr', 'from_bp', 'to_bp'])
-    exclude_ranges = []
-    if args_exclude_ranges is not None:
-        for exclude_range in args_exclude_ranges:
-            try:
-                exclude_range=exclude_range.strip().upper().replace('CHR','')
-                if exclude_range == '[]': continue
-                if exclude_range == 'MHC': exclude_range='6:25-35MB'
-                if exclude_range == 'APOE': exclude_range = '19:45-46MB'
-                if exclude_range.endswith('KB'): factor=1e3
-                elif exclude_range.endswith('MB'): factor=1e6
-                else: factor=1
-                exclude_range=exclude_range.replace('KB', '').replace('MB', '')
-                chr_from_to = [int(x) for x in exclude_range.replace(':', ' ').replace('-', ' ').split()[:3]]
-                chr_from_to[1] *= factor
-                chr_from_to[2] *= factor
-                range = ChromosomeRange._make(chr_from_to)
-            except Exception as e:
-                raise(ValueError('Unable to interpret exclude range "{}", chr:from-to format is expected.'.format(exclude_range)))
-            exclude_ranges.append(range)
-    return exclude_ranges
-
-def fix_and_validate_args(args):
-    # here is what you need to know about how --seed  is handled:
-    # 1. If it optional. When not specified, we will use np.rando.randint to generate a random seed (the the line below this comment)
-    # 2. There are several places in this code where we generate random numbers using numpy library. Therefore, we use args.seed to initialize np.random.seed.
-    # 3. We pass args.seed to MiXeR using set_options("seed", args.seed), see convert_args_to_libbgmg_options() function.
-    #    This will ensure that random prunning uses consistent seed.
-    # 4. In ADAM algorithm, each cost function evaluation starts with it's own seed (to respect the stochastic nature of the algorithm)
-    #    This is done in line "libbgmg.set_option('seed', np.random.randint(np.iinfo(np.int32).max))".
-    # 5. --diffevo-fast-repeats also rely on seed to ensure different path of the differential evolution algorihtm.
-    if 'seed' in args:
-        if args.seed is None: args.seed = np.random.randint(np.iinfo(np.int32).max)
-        np.random.seed(args.seed)
-
-    fix_chr2use_arg(args, argname="chr2use")
-    if 'trait1_file' in args:
-        if '@' in args.trait1_file:
-            for chri in args.chr2use:
-                    check_input_file(args, 'trait1_file', chri)
-        else:
-            check_input_file(args, 'trait1_file')
-    check_input_file(args, 'trait2_file')
-    check_input_file(args, 'trait1_params_file')
-    check_input_file(args, 'trait2_params_file')
-    check_input_file(args, 'load-params-file')
-
-    if ('analysis' in args) and (args.analysis == 'fit2'):
-        if not args.load_params_file:
-            if not args.trait1_params_file: raise ValueError('--trait1-params-file or --load-params-file is required ')
-            if not args.trait2_params_file: raise ValueError('--trait2-params-file or --load-params-file is required ')
-
-    arg_dict = vars(args)
-    for chri in arg_dict["chr2use"]:
-        check_input_file(args, 'bim-file', chri)
-        check_input_file(args, 'ld-file', chri)
-        check_input_file(args, 'annot-file', chri)
-
-def convert_args_to_libbgmg_options(args):
-    libbgmg_options = {
-        'r2min': args.r2min if ('r2min' in args) else None,
-        'kmax': args.kmax[0] if ('kmax' in args) else None, 
-        'kmax_pdf': args.kmax_pdf[0] if ('kmax_pdf' in args) else None,
-        'threads': args.threads[0] if ('threads' in args) else None,
-        'seed': args.seed if ('seed' in args) else None,
-        'cubature_rel_error': args.cubature_rel_error if ('cubature_rel_error' in args) else None,
-        'cubature_max_evals': args.cubature_max_evals if ('cubature_max_evals' in args) else None,
-        'z1max': args.z1max if ('z1max' in args) else None,
-        'z2max': args.z2max if ('z2max' in args) else None, 
-    }
-    return [(k, v) for k, v in libbgmg_options.items() if v is not None ]
-
-def set_weights(args, libbgmg, randprune_n):
-    if 'weights_file' in args:
-        if args.weights_file.lower() == 'auto':
-            if ('load_baseline_params_file' in args) and args.load_baseline_params_file:
-                args.weights_file = (args.load_baseline_params_file + '\n').replace('.json\n', '.weights', 1)
-            elif ('load_params_file' in args) and args.load_params_file:
-                args.weights_file = (args.load_params_file + '\n').replace('.json\n', '.weights', 1)
-            else:
-                args.weights_file = 'none'
-
-        if args.weights_file.lower() != 'none':
-            args.save_weights = False
-            check_input_file(args, 'weights_file')
-
-            df_weights = pd.read_csv(args.weights_file, sep='\t')
-            df_weights = df_weights[df_weights['chrnumvec'].isin(set(libbgmg.chrnumvec))]
-            if len(df_weights) != libbgmg.num_snp:
-                raise ValueError(f'--weights-file {args.weights_file} defines weights for {len(df_weights)} snps, while {libbgmg.num_snp} snps were expected')
-            libbgmg.log_message(f'apply --weights-file {args.weights_file} (and skip all --hardprune and --randprune settings)')
-            libbgmg.weights = df_weights.loc[libbgmg.defvec, 'weights'].values.flatten()
-            return
-
-    hardprune_subset = args.hardprune_subset if ('hardprune_subset' in args) else 0
-    hardprune_r2 = args.hardprune_r2 if ('hardprune_r2' in args) else 0
-    hardprune_maf = args.hardprune_maf if ('hardprune_maf' in args) else 0
-
-    if (hardprune_subset != 0) or (hardprune_r2 != 0) or (hardprune_maf != 0):
-        libbgmg.set_weights_hardprune(hardprune_subset, hardprune_r2, hardprune_maf, not args.disable_inverse_ld_score_weights)
-
-    if (randprune_n is not None) and (randprune_n != 0):
-        libbgmg.set_weights_randprune(randprune_n, args.randprune_r2, 0, not args.disable_inverse_ld_score_weights, "", "")
-
-# https://stackoverflow.com/questions/27433316/how-to-get-argparse-to-read-arguments-from-a-file-with-an-option-rather-than-pre
-class LoadFromFile (argparse.Action):
-    def __call__ (self, parser, namespace, values, option_string=None):
-        with values as f:
-            contents = '\n'.join([x for x in f.readlines() if (not x.strip().startswith('#'))])
-
-        data = parser.parse_args(contents.split(), namespace=namespace)
-        for k, v in vars(data).items():
-            if v and k != option_string.lstrip('-'):
-                setattr(namespace, k, v)
 
 def parser_add_arguments(parser, func, analysis_type):
     if analysis_type in ['fit1', 'test1', 'fit2', 'test2', 'save_ldsc_reference', 'perf', 'fixed_effects']:
@@ -385,50 +241,6 @@ def parser_add_arguments(parser, func, analysis_type):
             parser.add_argument('--ci-power-samples', type=int, default=100, help=argparse.SUPPRESS)         # number of samples in power curves uncertainty estimation
 
     parser.set_defaults(func=func)
-
-def initialize_libbgmg_logging(args):
-    libbgmg = LibBgmg(args.lib)
-    log_fname = args.log if args.log else args.out + '.log'
-    if os.path.exists(log_fname): os.system(f'rm {log_fname}')
-    libbgmg.init_log(log_fname)
-    log_header(args, sys.argv[1], libbgmg)
-    libbgmg.dispose()
-    return libbgmg
-
-def generate_args_parser(__version__=None):
-    raise ValueError('get rid of code duplication in gsa_mixer/cli.py and bivar_mixer/cli.py (parser_add_arguments, log_header, initialize_libbgmg_logging, LoadFromFile, set_weights, check_input_file)')
-    parser = argparse.ArgumentParser(description=f"MiXeR v{__version__}: Univariate and Bivariate Causal Mixture for GWAS.")
-    parser.add_argument('--version', action='version', version=f'MiXeR v{__version__}')
-
-    parent_parser = argparse.ArgumentParser(add_help=False)
-    parent_parser.add_argument('--argsfile', type=open, action=LoadFromFile, default=None, help=argparse.SUPPRESS) #"file with additional command-line arguments, e.g. those that are across all of your mixer.py runs (--lib, --bim-file and --ld-file)")
-    parent_parser.add_argument("--out", type=str, default="mixer", help="prefix for the output files, such as <out>.json (default: %(default)s);")
-    parent_parser.add_argument("--lib", type=str, default="libbgmg.so", help="path to libbgmg.so plugin (default: %(default)s); can be also specified via BGMG_SHARED_LIBRARY env variable.")
-    parent_parser.add_argument("--log", type=str, default=None, help="file to output log (default: <out>.log); NB! if --log points to an existing file the new lines will be appended to it at the end of the file.")
-
-    subparsers = parser.add_subparsers()
-
-    parser_add_arguments(func=execute_fit1_or_test1_parser, parser=subparsers.add_parser("fit1", parents=[parent_parser], help='fit univariate MiXeR model'), analysis_type="fit1")
-    parser_add_arguments(func=execute_fit1_or_test1_parser, parser=subparsers.add_parser("test1", parents=[parent_parser], help='test univariate MiXeR model'), analysis_type="test1")
-    parser_add_arguments(func=execute_fit2_or_test2_parser, parser=subparsers.add_parser("fit2", parents=[parent_parser], help='fit bivariate MiXeR model'), analysis_type="fit2")
-    parser_add_arguments(func=execute_fit2_or_test2_parser, parser=subparsers.add_parser("test2", parents=[parent_parser], help='test bivariate MiXeR model'), analysis_type="test2")
-    parser_add_arguments(func=execute_save_ldsc_reference_parser, parser=subparsers.add_parser("save_ldsc_reference", parents=[parent_parser], help='save ldsc reference'), analysis_type='save_ldsc_reference')
-    parser_add_arguments(func=execute_perf_parser, parser=subparsers.add_parser("perf", parents=[parent_parser], help='run performance evaluation of the MiXeR'), analysis_type='perf')
-    parser_add_arguments(func=execute_fixed_effects_parser, parser=subparsers.add_parser("fixed_effects", parents=[parent_parser], help='find fixed effects (beta) at the level of tagging variants'), analysis_type='fixed_effects')
-
-    return parser
-
-def log_header(args, subparser_name, lib):
-    defaults = vars(generate_args_parser().parse_args([subparser_name]))
-    opts = vars(args)
-    non_defaults = [x for x in opts.keys() if opts[x] != defaults[x]]
-    header = MASTHEAD
-    header += "Call: \n"
-    header += './mixer.py {} \\\n'.format(subparser_name)
-    options = ['\t--'+x.replace('_','-')+' '+(' '.join([str(y) for y in opts[x]]) if isinstance(opts[x], list) else str(opts[x])).replace('\t', '\\t')+' \\' for x in non_defaults]
-    header += '\n'.join(options).replace('True','').replace('False','')
-    header = header[0:-1]+'\n'
-    lib.log_message(header)
 
 def load_params_file(fname_or_params, libbgmg, args):
     if isinstance(fname_or_params, AnnotUnivariateParams) or isinstance(fname_or_params, BivariateParams):
@@ -648,79 +460,9 @@ def apply_bivariate_fit_sequence(args, libbgmg, fit_sequence):
     if params == None: raise(RuntimeError('Empty --fit-sequence'))
     return (params, params1, params2, optimize_result_sequence)
 
-# helper function to debug non-json searizable types...
-def print_types(results, libbgmg):
-    if isinstance(results, dict):
-        for k, v in results.items():
-            libbgmg.log_message('{}: {}'.format(k, type(v)))
-            print_types(v, libbgmg)
-
-def initialize_mixer_plugin(args, context_id, trait1_file, trait2_file, randprune_n, loadlib_file, savelib_file, chr_labels, lib_file_suffix):
-    exclude_ranges = ' '.join([f'{range.chr}:{int(range.from_bp)}-{int(range.to_bp)}' for range in make_ranges(args.exclude_ranges)]) if ('exclude_ranges' in args) else ""
-
-    libbgmg = LibBgmgAnnot(args.lib, context_id=context_id)
-    if loadlib_file:
-        libbgmg.log_message(f'loading {loadlib_file}...')
-        if args.ld_file: libbgmg.log_message(f'WARNING: --ld-file argument will be ignored')
-        libbgmg.load(loadlib_file)
-
-        if set(libbgmg.chrnumvec).symmetric_difference(set(chr_labels)):
-            raise(ValueError(f'--chr-labels argument appear to be different than chromosomes {list(sorted(set(libbgmg.chrnumvec)))} loaded from --loadlib-file'))
-
-        if 'allow_ambiguous_snps' in args:
-            libbgmg.set_option('allow_ambiguous_snps', args.allow_ambiguous_snps)
-        if trait1_file: libbgmg.read_trait_file(1, trait1_file, args.exclude if ('exclude' in args) else "", args.extract if ('extract' in args) else "", exclude_ranges)
-        if trait2_file: libbgmg.read_trait_file(2, trait2_file, args.exclude if ('exclude' in args) else "", args.extract if ('extract' in args) else "", exclude_ranges)
-        libbgmg.set_option('cost_calculator', _cost_calculator_sampling)
-
-        for opt, val in convert_args_to_libbgmg_options(args):
-            libbgmg.set_option(opt, val)
-
-        set_weights(args, libbgmg, randprune_n)
-        libbgmg.set_option('diag', 0)
-    else:
-        if 'use_complete_tag_indices' in args:
-            libbgmg.set_option('use_complete_tag_indices', args.use_complete_tag_indices)
-        if 'allow_ambiguous_snps' in args:
-            libbgmg.set_option('allow_ambiguous_snps', args.allow_ambiguous_snps)
-        libbgmg.init(args.bim_file, "", chr_labels,
-                    trait1_file,
-                    trait2_file,
-                    args.exclude if ('exclude' in args) else "",
-                    args.extract if ('extract' in args) else "",
-                    exclude_ranges)
-        libbgmg.set_option('cost_calculator', _cost_calculator_sampling)
-
-        for opt, val in convert_args_to_libbgmg_options(args):
-            libbgmg.set_option(opt, val)
-
-        for chr_label in chr_labels: 
-            libbgmg.set_ld_r2_coo_from_file(chr_label, args.ld_file.replace('@', str(chr_label)))
-            libbgmg.set_ld_r2_csr(chr_label)
-
-        if trait1_file or trait2_file: set_weights(args, libbgmg, randprune_n)
-        libbgmg.set_option('diag', 0)
-        if savelib_file:
-            if not args.use_complete_tag_indices: libbgmg.log_message('WARNING: unless you know exactly what you are doing, it is recommended to use --use-complete-tag-indices together with --savelib-file.')
-            libbgmg.log_message(f'saving {savelib_file}...')
-            libbgmg.save(savelib_file)
-
-    annomat, annonames, bim = gsa_mixer.cli.find_annomat(args.annot_file if ('annot_file' in args) else None, chr_labels, lib_file_suffix, libbgmg)
-    libbgmg.annomat = annomat
-    libbgmg.annonames = annonames
-    if bim is not None: libbgmg.bim = bim
-
-    genemat, genenames, bim = gsa_mixer.cli.find_genemat(args.go_file if ('go_file' in args) else None, args.go_extend_bp if ('go_extend_bp' in args) else None, args.bim_file, chr_labels, lib_file_suffix, libbgmg)
-    libbgmg.genemat = genemat
-    libbgmg.genenames = genenames
-    if bim is not None: libbgmg.bim = bim
-
-    return libbgmg
-
 def execute_perf_parser(args):
-    initialize_libbgmg_logging(args)
     fix_and_validate_args(args)
-    libbgmg = initialize_mixer_plugin(args, 0, args.trait1_file, args.trait2_file, args.randprune_n, args.loadlib_file, args.savelib_file, args.chr2use, '@')
+    libbgmg = gsa_mixer.cli.initialize_mixer_plugin(args, 0, args.trait1_file, args.trait2_file, args.randprune_n, args.loadlib_file, args.savelib_file, args.chr2use, '@')
     params1 = UnivariateParams_obsolete(pi=3e-3, sig2_beta=1e-5, sig2_zeroA=1.05)
     params12 = BivariateParams(params1=params1, params2=params1, pi12=2e-3, rho_beta=0.5, rho_zero=0.3)
 
@@ -760,10 +502,9 @@ def init_results_struct(args, libbgmg_vec=None):
     return results
 
 def execute_fit1_or_test1_parser(args):
-    initialize_libbgmg_logging(args)
     fix_and_validate_args(args)
 
-    libbgmg = initialize_mixer_plugin(args, 0, args.trait1_file, "", args.randprune_n, args.loadlib_file, args.savelib_file, args.chr2use, '@')
+    libbgmg = gsa_mixer.cli.initialize_mixer_plugin(args, 0, args.trait1_file, "", args.randprune_n, args.loadlib_file, args.savelib_file, args.chr2use, '@')
 
     if not args.trait1_file:
         libbgmg.log_message('--trait1-file not provided, exit')
@@ -853,10 +594,9 @@ def execute_fit1_or_test1_parser(args):
     libbgmg.log_message('Done')
 
 def execute_fit2_or_test2_parser(args):
-    initialize_libbgmg_logging(args)
     fix_and_validate_args(args)
 
-    libbgmg = initialize_mixer_plugin(args, 0, args.trait1_file, args.trait2_file, args.randprune_n, args.loadlib_file, args.savelib_file, args.chr2use, '@')
+    libbgmg = gsa_mixer.cli.initialize_mixer_plugin(args, 0, args.trait1_file, args.trait2_file, args.randprune_n, args.loadlib_file, args.savelib_file, args.chr2use, '@')
 
     df_weights = pd.DataFrame({'chrnumvec':libbgmg.chrnumvec, 'weights': tagvec_as_snpvec(libbgmg.weights, libbgmg.defvec)})
     results = init_results_struct(args, [libbgmg])
@@ -896,12 +636,6 @@ def execute_fit2_or_test2_parser(args):
 
     libbgmg.set_option('diag', 0)
     libbgmg.log_message('Done')
-
-def tagvec_as_snpvec(tagvec, defvec):
-        snpvec = np.empty(defvec.shape, dtype=float)
-        snpvec[:] = np.nan
-        snpvec[defvec] = tagvec
-        return snpvec
 
 def find_per_snp_information_bivariate(libbgmg, params):
     # Save a file with the following information
@@ -1039,29 +773,13 @@ def find_per_snp_information_univariate(libbgmg_vec, params, trait_index, extend
 
     return pd.concat(df_snps)
 
-def find_snp_defvec(chr_label, posvec, exclude_ranges, libbgmg):
-    snp_defvec = None
-
-    for range in exclude_ranges:
-        if str(chr_label) != str(range.chr): continue
-        snp_defvec2 = (posvec < range.from_bp) | (posvec > range.to_bp)
-        if snp_defvec is None: snp_defvec = snp_defvec2
-        else: snp_defvec = snp_defvec & snp_defvec2
-
-    if snp_defvec is not None:
-        snp_defvec = np.array(snp_defvec, dtype=np.float32).reshape((-1, 1))
-        libbgmg.log_message("Exclude {} SNPs on chr{}".format(int(len(snp_defvec) - np.sum(snp_defvec)), chr_label))
-
-    return snp_defvec
-
 def execute_save_ldsc_reference_parser(args):
-    libbgmg = initialize_libbgmg_logging(args)
     fix_and_validate_args(args)
 
     libbgmg_vec = []
     annot_snps = 0; gene_snps = 0
     for chr_label in args.chr2use:
-        libbgmg = initialize_mixer_plugin(
+        libbgmg = gsa_mixer.cli.initialize_mixer_plugin(
             args,
             context_id=chr_label,
             trait1_file="",
@@ -1143,7 +861,6 @@ def execute_save_ldsc_reference_parser(args):
     Path(args.out + '.done').touch()
 
 def execute_fixed_effects_parser(args):
-    initialize_libbgmg_logging(args)
     fix_and_validate_args(args)
 
     bim = pd.concat([pd.read_csv(args.bim_file.replace('@', str(chr_label)), sep='\t', header=None, names='CHR SNP GP BP A1 A2'.split()) for chr_label in args.chr2use])

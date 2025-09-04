@@ -64,3 +64,10 @@ class NumpyEncoder(json.JSONEncoder):
         if isinstance(obj, np.int64):
             return str(obj)
         return json.JSONEncoder.default(self, obj)
+
+# helper function to debug non-json searizable types...
+def print_types(results, libbgmg):
+    if isinstance(results, dict):
+        for k, v in results.items():
+            libbgmg.log_message('{}: {}'.format(k, type(v)))
+            print_types(v, libbgmg)

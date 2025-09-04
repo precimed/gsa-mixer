@@ -29,6 +29,12 @@ def _n2p(res_value):  # native2python
             return res_value.decode('utf-8')
     return res_value
 
+def tagvec_as_snpvec(tagvec, defvec):
+        snpvec = np.empty(defvec.shape, dtype=float)
+        snpvec[:] = np.nan
+        snpvec[defvec] = tagvec
+        return snpvec
+
 class LibBgmg(object):
     def __init__(self, lib_name=None, context_id=0, init_log=None, dispose=False):
         self._context_id = context_id
