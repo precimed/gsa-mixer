@@ -5,7 +5,7 @@ sys.path.append(os.getcwd())
 import pandas as pd
 import numpy as np
 from scipy.sparse import coo_matrix
-from precimed.mixer import libbgmg
+from common import libbgmg
 
 
 # py.test precimed/mixer-test/test_ld.py  -k test_ld

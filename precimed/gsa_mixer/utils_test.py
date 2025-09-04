@@ -1,7 +1,7 @@
 import numpy as np
 import logging
 import collections
-from precimed.mixer.utils_obsolete import UnivariateParams_obsolete
+from .utils_obsolete import UnivariateParams_obsolete
 from scipy.sparse import csr_matrix, coo_matrix, csc_matrix
 import pytest
 

@@ -5,7 +5,7 @@ sys.path.append(os.getcwd())
 import pandas as pd
 import numpy as np
 import pytest
-from precimed.mixer import libbgmg
+from common import libbgmg
 
 # features:
 # E - extract

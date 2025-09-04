@@ -18,7 +18,7 @@ from datetime import datetime
 from pathlib import Path
 from scipy.sparse import csr_matrix, coo_matrix
 
-from .libbgmg import LibBgmg, LibBgmgAnnot
+from common.libbgmg import LibBgmg, LibBgmgAnnot
 from .utils import AnnotUnivariateParams
 from .utils import BivariateParams
 from .utils import _params_to_dict

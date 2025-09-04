@@ -4,7 +4,7 @@ import logging
 import sys
 
 from version import VERSION as __version__
-from mixer.cli import generate_args_parser
+from gsa_mixer.cli import generate_args_parser
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
