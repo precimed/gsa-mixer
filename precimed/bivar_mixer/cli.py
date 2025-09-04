@@ -46,7 +46,7 @@ from .utils import calc_power_curve
 from .utils import calc_bivariate_qq
 from .utils import calc_bivariate_pdf
 
-from common.utils_cli import fix_and_validate_args
+import common.utils_cli
 
 from common.utils import NumpyEncoder
 
@@ -68,42 +68,19 @@ def enhance_optimize_result(r, cost_n, cost_df=None, cost_fast=None):
     if cost_fast is not None: r['cost_fast'] = cost_fast
 
 def parser_add_arguments(parser, func, analysis_type):
-    if analysis_type in ['fit1', 'test1', 'fit2', 'test2', 'save_ldsc_reference', 'perf', 'fixed_effects']:
-        parser.add_argument("--bim-file", type=str, default=None, help="plink bim file (required argument); "
-            "defines the reference set of SNPs used for the analysis. "
-            "Marker names must not have duplicated entries. "
-            "May contain symbol '@', which will be replaced by an actual chromosome label. ")
-        parser.add_argument("--ld-file", type=str, default=None, help="file with linkage disequilibrium information, "
-            "generated via 'mixer.py ld' command (required argument); "
-            "may contain symbol '@', similarly to --bim-file argument. ")
+    common.utils_cli.parser_add_argument_bim_file(parser)
+    common.utils_cli.parser_add_argument_ld_file(parser)
+    common.utils_cli.parser_add_argument_chr2use(parser)
+    common.utils_cli.parser_add_argument_extract_and_exclude(parser)
+    common.utils_cli.parser_add_argument_use_complete_tag_indices(parser)
+    common.utils_cli.parser_add_argument_allow_albiguous_snps(parser)
+    common.utils_cli.parser_add_argument_savelib_and_loadlib(parser)
+    common.utils_cli.parser_add_argument_annot_file(parser)
+    common.utils_cli.parser_add_argument_go_file(parser)
 
-    if True:  # all analysis types
-        parser.add_argument("--chr2use", type=str, default="1-22", help="chromosome labels to use (default: %(default)s); "
-        "chromosome must be labeled by integer, i.e. X and Y are not acceptable; example of valid arguments: '1,2,3' or '1-4,12,16-20'")
-
-    if analysis_type in ['fit1', 'test1', 'fit2', 'test2', 'save_ldsc_reference', 'perf', 'fixed_effects']:
-        parser.add_argument('--extract', type=str, default="", help="(optional) File with variants to include in the analysis. By default, all variants are included. This applies to GWAS tag SNPs, however LD is still computed towards the entire reference provided by --bim-file. This applies before --exclude, so a variant listed in --exclude won't be re-introduced if it's also present in --extract list.")
-        parser.add_argument('--exclude', type=str, default="", help="(optional) File with variants to exclude from the analysis.")
-        parser.add_argument('--exclude-ranges', type=str, default=['MHC'], nargs='+',
-            help='(default: %(default)s) exclude SNPs in ranges of base pair position; '
-            'the syntax is chr:from-to, for example 6:25000000-35000000; '
-            'multiple regions can be excluded; '
-            '"chr" prefix prior to chromosome label, as well as KB and MB suffices are allowed, e.g. chr6:25-35MB is a valid exclusion range. '
-            'Some special case regions are also supported, for example "--exclude-ranges MHC APOE".'
-            'To overwrite the default, pass "--exclude-ranges []".')
-
-        parser.add_argument('--use-complete-tag-indices', default=False, action="store_true", help=argparse.SUPPRESS) #"advanced option (expert use only); MiXeR software has a notion of 'tag SNPs', which are the subset of the SNPs in --bim-file with well defined GWAS z-score(s); this saves memory used by LD r2 storage, which became a rectangular matrix (LD r2 between two SNPs from the --bim-file is stored only if one of the SNPs is a tag SNP). Setting this flag enforces all --bim-file SNPs to be treated as tag SNPs, some will have undefined GWAS z-score(s), and the complete LD matrix will be save in memory.")
-        parser.add_argument('--allow-ambiguous-snps', default=False, action="store_true", help="advanced option (expert use only); a flag allowing to include A/T and C/G SNPs in fit procedure.")
-        parser.add_argument("--savelib-file", type=str, default=None, help="optional path to save the state of the libbgmg object (for faster initialization with --loadlib-file). It is highly recommended to use --use-complete-tag-indices together with --savelib-file.")
-        parser.add_argument("--loadlib-file", type=str, default=None, help="optional path to load libbgmg object; "
-            "there are several limitations if you use this option: "
-            "--bim-file argument must be the same as what was used with --savelib-file; "
-            "same restriction applies to --chr2use argument for fit1,test1,fit2,test2 analyses, however for save_ldsc_reference analysis --chr2use can be different as each chromosome has its own .bin file; "
-            "--ld-file and --use-complete-tag-indices arguments will be ignored.")
-
-    if analysis_type in ['fit1', 'test1', 'fit2', 'test2', 'save_ldsc_reference', 'perf']:
+    if analysis_type in ['fit1', 'test1', 'fit2', 'test2', 'perf']:
         num_traits = None
-        if analysis_type in ['fit1', 'test1', 'save_ldsc_reference']: num_traits = 1
+        if analysis_type in ['fit1', 'test1']: num_traits = 1
         if analysis_type in ['fit2', 'test2', 'perf']: num_traits = 2
 
         parser.add_argument("--trait1-file", type=str, default="", help="GWAS summary statistics for the first trait (required argument); for 'save_ldcs_reference' analysis it is recommended to split GWAS summary statistics per chromosome; if this is done then --trait1-file should contain symbol '@', which will be replaced by an actual chromosome label. ")
@@ -117,7 +94,7 @@ def parser_add_arguments(parser, func, analysis_type):
         parser.add_argument('--randprune-r2', type=float, default=0.1, help="threshold for random pruning (default: %(default)s)")
         parser.add_argument('--disable-inverse-ld-score-weights', default=False, action="store_true", help="a flag allowing to disable weighting by inverse ld score")
 
-        parser.add_argument('--weights-file', type=str, default=('auto' if (analysis_type in ['fit1', 'fit2', 'save_ldsc_reference']) else 'none'), help="file to load weights (default: %(default)s); 'auto' takes weights file that is associated with --load-params argument (if it is provided); 'none' disables 'auto' feature; otherwise this argument must point to a <out>.weights produced by a previous mixer.py analysis")
+        parser.add_argument('--weights-file', type=str, default=('auto' if (analysis_type in ['fit1', 'fit2']) else 'none'), help="file to load weights (default: %(default)s); 'auto' takes weights file that is associated with --load-params argument (if it is provided); 'none' disables 'auto' feature; otherwise this argument must point to a <out>.weights produced by a previous mixer.py analysis")
         parser.add_argument('--save-weights', default=False, action="store_true", help="a flag allowing to save weights set via --hardprune and --randprune options")
 
         parser.add_argument('--seed', type=np.uint32, default=None, help="random seed (default: %(default)s).")
@@ -133,57 +110,7 @@ def parser_add_arguments(parser, func, analysis_type):
     if analysis_type == 'fixed_effects':
         parser.add_argument("--causal-variants", type=str, default=None, help="File with causal effects (similar to --causal-variants in https://github.com/precimed/simu)")
 
-    if analysis_type == 'save_ldsc_reference':
-        # --go-file and --go-file-test must contain columns 'GO', 'GENE', 'CHR', 'FROM', 'TO'
-        parser.add_argument("--annot-file", type=str, default=None, help="(optional) path to binary annotations in LD score regression format, i.e. <path>/baseline.@.annot.gz for fitting enrichment model model. This must include the first column with all ones ('base' annotation category covering the entire genome).")
-        parser.add_argument("--go-file", type=str, default=None, help="(optional) path to GO antology file for fitting enrichment model model. The format is described in the documentation. 'base' category that covers entire genome will be added automatically.")
-        parser.add_argument("--calc-loglike-diff-go-test", default=None, choices=['fast', 'full'], help="algorithm for computation of the loglike_diff column in <out>.go_test_enrich.csv")
-        parser.add_argument("--go-all-genes-label", type=str, default='coding_genes', help="reference gene-set to calibrate fold enrichment, e.g. allowing to compute enrichment w.r.t. the set of all coding genes (default: %(default)s)")
-        parser.add_argument("--go-extend-bp", type=int, default=gsa_mixer.cli.GO_EXTEND_BP_DEFAULT, help="extends each gene by this many base pairs, defining a symmetric window up and downstream (default: %(default)s)")
-        parser.add_argument('--save-ldsc-reference', default=False, action="store_true", help=argparse.SUPPRESS) #"advanced option (expert use only); saves --annot-file and --go-file as LDSC reference")
-        parser.add_argument('--enable-faster-gradient-calculation', default=False, action="store_true", help=argparse.SUPPRESS) #"advanced option (expert use only); saves --annot-file and --go-file as LDSC reference")
-        
-        parser.add_argument('--sig2-zeroL', default=0.0, type=float, help="(optional) initial value or constraint for 'sig2_zeroL' parameter (default: %(default)s); make sure to change initial value of this parameter to 1e-8 if '--fit sig2-zeroL'")
-        parser.add_argument('--sig2-zeroA', default=1.0, type=float, help="(optional) initial value or constraint for 'sig2_zeroA' parameter (default: %(default)s);")
-        parser.add_argument('--s-value', default=-0.25, type=float, help="(optional) initial value or constraint for the 's' parameter (default: %(default)s);")
-        parser.add_argument('--l-value', default=0, type=float, help="(optional) initial value or constraint for the 'l' parameter (default: %(default)s);")
-        parser.add_argument('--pi-value', default=1.0, type=float, help="(optional) initial value or constraint for the 'pi' parameter (default: %(default)s);")
-        parser.add_argument('--h2-init-calibration', default=None, type=float, help="(optional) initial value for heritability calibration")
-        parser.add_argument('--constrain-base-gene-category', default=False, action="store_true", help="a flag indicating whether to constrain sig2_gene for the baseline category during fit")
-        parser.add_argument('--nullify-go-all-genes-sig2-gene', default=False, action="store_true", help="a flag indicating whether to set sig2_gene=0 for --go-all-genes-label")
-
-        parser.add_argument('--fit', type=str, nargs='+', default=[], help="parameters to fit from the data",
-            choices=['sig2-zeroL', 'sig2-zeroA', 's', 'l', 'pi', 'annot', 'gene'])
-
-        # --fit annot gene s l pi sig2-zeroA sig2-zeroL 
-        parser.add_argument('--annot-p', default=1, type=float, help="power factor for sigma2 aggregation in overlapping annotations (default: %(default)s)")
-        parser.add_argument('--gene-p', default=1, type=float, help="power factor for sigma2 aggregation in overlapping gene-sets (default: %(default)s)")
-
-        parser.add_argument('--adam-epoch', default=[10, 10, 10, 10, 10, 10, 10, 10, 10, 10], nargs='+', type=int, help="number of iterations in ADAM procedure (default: %(default)s)")
-        parser.add_argument('--adam-beta1', default=0.9, type=float, help="beta_1 parameter in ADAM procedure (default: %(default)s)")
-        parser.add_argument('--adam-beta2', default=0.99, type=float, help="beta_2 parameter in ADAM procedure (default: %(default)s)")
-        parser.add_argument('--adam-eps', default=1e-8, type=float, help="epsilon parameter in ADAM procedure (default: %(default)s)")
-        parser.add_argument('--adam-step', default=[0.064, 0.032, 0.016, 0.008, 0.004, 0.002, 0.001, 0.0005, 0.00025, 0.0001], nargs='+', type=float, help="step parameter in ADAM procedure (default: %(default)s)") # (two arguments trigger cycling learning rate")
-        parser.add_argument('--adam-disable', default=False, action="store_true", help="a flag allowing to disable optimization; typical usecase would be in conjunction with these flags: '--adam-disable --load-params-file <out-of-a-previous-run>.json --make-snps-file --allow-ambiguous-snps'")
-        parser.add_argument('--adam-separate-by-chromosome', default=False, action="store_true", help="a flag allowing to run optimization separately on each chromosome; this is only recommended with '--fit gene --constrain-base-gene-category --adam-beta2 0.9' configuration")
-        
-        parser.add_argument('--load-params-file', type=str, default=None, help="(optional) params of the fitted model to load; expected to be from a 'mixer.py save_ldsc_reference' run; if specified, parameters loaded from --load-params-file take priority over --s-value, --l-value, --pi-value, --sig2-zeroA, --sig2-zeroL values; note that --go-all-genes-label is used to populate initial sig2_gene values for all genes except base")
-        parser.add_argument('--load-baseline-params-file', type=str, default=None, help="(optional) params of the baseline model to load and use for fold enrichment estimation; if --load-baseline-params-file is not provided, --load-params-file will be used;")
-
-        parser.add_argument("--calc-detailed-trajectory", default=False, action="store_true", help=argparse.SUPPRESS) # "Calcualte detailed trajectory (one data point for each chromosome and --adam-epoch). Make cause excessively large .json files with --go-annot.")
-        parser.add_argument("--calc-trajectory", default=False, action="store_true", help=argparse.SUPPRESS)
-        parser.add_argument("--power-curve", default=False, action="store_true", help=argparse.SUPPRESS) # "Calculate power curve")
-        parser.add_argument("--qqplot", default=False, action="store_true", help=argparse.SUPPRESS) #"Calculate QQ plots")
-        parser.add_argument("--make-snps-file", default=False, action="store_true", help="a flag allowing to generate file with per-SNP estimates; will generate <out>.snps.csv output file")
-        parser.add_argument('--downsample-factor', default=50, type=int, help=argparse.SUPPRESS)         # Applies to --power-curve and --qq-plots, --downsample-factor N' imply that only 1 out of N available z-score values will be used in model calculations.
-        parser.add_argument('--se-samples', default=100, type=int, help="number of samples in standard error computation (using log-likelihood hessian / observed Fisher's information; applies only to --go-file-test")
-        parser.add_argument("--gsa-base", default=False, action="store_true", help="set default parameters to values recommended for the baseline GSA model")
-        parser.add_argument("--gsa-full", default=False, action="store_true", help="set default parameters to values recommended for the full GSA model")
-
     if analysis_type in ['fit1', 'test1', 'fit2', 'test2']:
-        parser.add_argument("--annot-file", type=str, default=None, help="(optional) path to binary annotations in LD score regression format, i.e. <path>/baseline.@.annot.gz for fitting enrichment model model. This must include the first column with all ones ('base' annotation category covering the entire genome).")
-        parser.add_argument("--go-file", type=str, default=None, help="(optional) path to GO antology file for fitting enrichment model model. The format is described in the documentation. 'base' category that covers entire genome will be added automatically.")
-        parser.add_argument("--go-extend-bp", type=int, default=gsa_mixer.cli.GO_EXTEND_BP_DEFAULT, help="extends each gene by this many base pairs, defining a symmetric window up and downstream (default: %(default)s)")
         parser.add_argument('--nckoef', default=None, type=float, help="(optional) coefficient translating total number of causal variants to the number of causal variants explaining 90%% of trait's heritability; by default this is estimated from the data (up until MiXeR v1.3 this was set to 0.319)")
 
         if analysis_type in ['fit1', 'test1']:
@@ -461,7 +388,7 @@ def apply_bivariate_fit_sequence(args, libbgmg, fit_sequence):
     return (params, params1, params2, optimize_result_sequence)
 
 def execute_perf_parser(args):
-    fix_and_validate_args(args)
+    common.utils_cli.fix_and_validate_args(args)
     libbgmg = gsa_mixer.cli.initialize_mixer_plugin(args, 0, args.trait1_file, args.trait2_file, args.randprune_n, args.loadlib_file, args.savelib_file, args.chr2use, '@')
     params1 = UnivariateParams_obsolete(pi=3e-3, sig2_beta=1e-5, sig2_zeroA=1.05)
     params12 = BivariateParams(params1=params1, params2=params1, pi12=2e-3, rho_beta=0.5, rho_zero=0.3)
@@ -502,7 +429,7 @@ def init_results_struct(args, libbgmg_vec=None):
     return results
 
 def execute_fit1_or_test1_parser(args):
-    fix_and_validate_args(args)
+    common.utils_cli.fix_and_validate_args(args)
 
     libbgmg = gsa_mixer.cli.initialize_mixer_plugin(args, 0, args.trait1_file, "", args.randprune_n, args.loadlib_file, args.savelib_file, args.chr2use, '@')
 
@@ -594,7 +521,7 @@ def execute_fit1_or_test1_parser(args):
     libbgmg.log_message('Done')
 
 def execute_fit2_or_test2_parser(args):
-    fix_and_validate_args(args)
+    common.utils_cli.fix_and_validate_args(args)
 
     libbgmg = gsa_mixer.cli.initialize_mixer_plugin(args, 0, args.trait1_file, args.trait2_file, args.randprune_n, args.loadlib_file, args.savelib_file, args.chr2use, '@')
 
@@ -773,8 +700,8 @@ def find_per_snp_information_univariate(libbgmg_vec, params, trait_index, extend
 
     return pd.concat(df_snps)
 
-def execute_save_ldsc_reference_parser(args):
-    fix_and_validate_args(args)
+def execute_save_matlab_reference_parser(args):
+    common.utils_cli.fix_and_validate_args(args)
 
     libbgmg_vec = []
     annot_snps = 0; gene_snps = 0
@@ -784,7 +711,7 @@ def execute_save_ldsc_reference_parser(args):
             context_id=chr_label,
             trait1_file="",
             trait2_file="",
-            randprune_n=args.randprune_n, 
+            randprune_n=None, 
             loadlib_file=args.loadlib_file.replace('@', str(chr_label)) if args.loadlib_file else None, 
             savelib_file=args.savelib_file.replace('@', str(chr_label)) if args.savelib_file else None, 
             chr_labels=[chr_label], 
@@ -861,7 +788,7 @@ def execute_save_ldsc_reference_parser(args):
     Path(args.out + '.done').touch()
 
 def execute_fixed_effects_parser(args):
-    fix_and_validate_args(args)
+    common.utils_cli.fix_and_validate_args(args)
 
     bim = pd.concat([pd.read_csv(args.bim_file.replace('@', str(chr_label)), sep='\t', header=None, names='CHR SNP GP BP A1 A2'.split()) for chr_label in args.chr2use])
     del bim['GP']
