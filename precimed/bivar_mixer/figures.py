@@ -31,15 +31,7 @@ from .utils import _calculate_bivariate_uncertainty_funcs
 from .utils import BivariateParams
 from .utils import NumpyEncoder
 
-__version__ = '1.2.0'
-MASTHEAD = "***********************************************************************\n"
-MASTHEAD += "* mixer_figures.py: Visualization tools for MiXeR\n"
-MASTHEAD += "* Version {V}\n".format(V=__version__)
-MASTHEAD += "* (c) 2016-2020 Oleksandr Frei, Alexey A. Shadrin, Dominic Holland\n"
-MASTHEAD += "* Norwegian Centre for Mental Disorders Research / University of Oslo\n"
-MASTHEAD += "* Center for Multimodal Imaging and Genetics / UCSD\n"
-MASTHEAD += "* GNU General Public License v3\n"
-MASTHEAD += "***********************************************************************\n"
+import common.utils_cli
 
 def make_qq_plot(qq, ci=True, ylim=7.3, xlim=7.3):
     hv_logp = np.array(qq['hv_logp']).astype(float)
@@ -339,25 +331,14 @@ def make_power_plot(data_vec, colors=None, traits=None, power_thresh=None):
     plt.yticks(np.arange(0, 1.01, step=0.2))
     plt.axes().set_yticklabels(labels=['0', '20', '40', '60', '80', '100'])
 
-# https://stackoverflow.com/questions/27433316/how-to-get-argparse-to-read-arguments-from-a-file-with-an-option-rather-than-pre
-class LoadFromFile (argparse.Action):
-    def __call__ (self, parser, namespace, values, option_string=None):
-        with values as f:
-            contents = f.read()
-
-        data = parser.parse_args(contents.split(), namespace=namespace)
-        for k, v in vars(data).items():
-            if v and k != option_string.lstrip('-'):
-                setattr(namespace, k, v)
-
-def parser_one_add_arguments(args, func, parser):
+def parser_one_add_arguments(func, parser):
     parser.add_argument('--json', type=str, default=[""], nargs='+', help="json file from a univariate analysis. This argument does support wildcards (*) or a list with multiple space-separated arguments to process more than one .json file. This allows to generate a combined .csv table across many traits.")
     parser.add_argument('--trait1', type=str, default=[], nargs='+', help="name of the first trait")
     parser.add_argument('--power-thresh', type=str, default=None, help="threshold for power analysis, e.g. 0.9 or 0.5, to estimate corresponding N")
     parser.add_argument('--power-figsize', type=float, nargs='+', default=[], help="figure size for power plots")
     parser.set_defaults(func=func)
 
-def parser_two_add_arguments(args, func, parser):
+def parser_two_add_arguments(func, parser):
     parser.add_argument('--json', type=str, default=[], nargs='*', help="json file from a bivariate analysis, i.e. either 'mixer.py fit2' or 'mixer.py test2' step. This argument does support wildcards (*) to process multiple .json files (this allows to generate a combined .csv table across many cross-trait combinations, but it doesn't generate figures; to generate figures, use --json on a single file, or alternatively use --json-fit and --json-test. ")
     parser.add_argument('--json-fit', type=str, default="", help="json file from a bivariate analysis with 'mixer.py fit2' step. This argument does NOT support wildcards. Using --json-fit in conjunction with --json-test produces figures that contain both log-likelihood plots (based on fit2 results) and QQ plot (based on test2 results). When use --json-fit and --json-test, there is no need to specify --json argument. ")
     parser.add_argument('--json-test', type=str, default="", help="json file from a bivariate analysis with 'mixer.py test2' step). This argument does NOT support wildcards.")
@@ -370,27 +351,28 @@ def parser_two_add_arguments(args, func, parser):
     parser.add_argument('--flip', default=False, action="store_true", help="flip venn diagram and stratified QQ plots. Note that this arguments does not apply to --trait1 and --trait2 arguments, not to --trait1-color and --trait2-color.")
     parser.set_defaults(func=func)
 
-def parser_combine_add_arguments(args, func, parser):
+def parser_combine_add_arguments(func, parser):
     parser.add_argument('--json', type=str, default=None, help="Path to json files from mixer runs. Must not contain wildcards. Must contain '@' sign, indicating the location of the repeat index.")
     parser.add_argument('--rep2use', type=str, default='1-20', help="Repeat indices to use, e.g. 1,2,3 or 1-4,12,16-20")
     parser.set_defaults(func=func)
 
-def parse_args(args):
-    parser = argparse.ArgumentParser(description="MiXeR visualization tools.")
-
+def generate_args_parser(__version__=None):
+    parser = argparse.ArgumentParser(description=f"MiXeR v{__version__}: visualization tools")
+    parser.add_argument('--version', action='version', version=f'MiXeR v{__version__}')
+    
     parent_parser = argparse.ArgumentParser(add_help=False)
-    parent_parser.add_argument('--argsfile', type=open, action=LoadFromFile, default=None, help="file with additional command-line arguments")
+    parent_parser.add_argument('--argsfile', type=open, action=common.utils_cli.LoadFromFile, default=None, help="file with additional command-line arguments")
     parent_parser.add_argument("--out", type=str, default="mixer", help="prefix for the output files")
     parent_parser.add_argument('--ext', type=str, default=['png'], nargs='+', choices=['png', 'svg'], help="output extentions")
     parent_parser.add_argument('--zmax', type=float, default=10, help="limit for z-vs-z density plots")
     parent_parser.add_argument('--statistic', type=str, nargs='+', default=["point_estimate"], choices=["point_estimate", "mean", "median", "std", "min", "max"], help="Which statistic to show in the tables and on the Venn diagrams. Can have multiple values. In the case of venn diagram, the first value (typically 'point_estimate' or 'mean') indicate the size of the venn diagram; the second value (optional, typically 'std') allow to include error bars on the Venn diagramm.")
 
     subparsers = parser.add_subparsers()
-    parser_one_add_arguments(args=args, func=execute_one_parser, parser=subparsers.add_parser("one", parents=[parent_parser], help='produce figures for univariate analysis'))
-    parser_two_add_arguments(args=args, func=execute_two_parser, parser=subparsers.add_parser("two", parents=[parent_parser], help='produce figures for cross-trait analysis'))
-    parser_combine_add_arguments(args=args, func=execute_combine_parser, parser=subparsers.add_parser("combine", parents=[parent_parser], help='combine .json files MiXeR runs (e.g. with different --extract setting)'))
+    parser_one_add_arguments(func=execute_one_parser, parser=subparsers.add_parser("one", parents=[parent_parser], help='produce figures for univariate analysis'))
+    parser_two_add_arguments(func=execute_two_parser, parser=subparsers.add_parser("two", parents=[parent_parser], help='produce figures for cross-trait analysis'))
+    parser_combine_add_arguments(func=execute_combine_parser, parser=subparsers.add_parser("combine", parents=[parent_parser], help='combine .json files MiXeR runs (e.g. with different --extract setting)'))
 
-    return parser.parse_args(args)
+    return parser
 
 def execute_two_parser(args):
     df_data = {}
