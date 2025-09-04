@@ -1,16 +1,17 @@
 import numpy as np
 import logging
 import collections
-from bivar_mixer.utils_obsolete import UnivariateParams_obsolete
 from scipy.sparse import csr_matrix, coo_matrix, csc_matrix
 import pytest
+
+from gsa_mixer.utils import AnnotUnivariateParams
 
 from .utils import UnivariateParametrization_natural_axis
 from .utils import UnivariateParametrization_constPI
 from .utils import UnivariateParametrization_constPI_constSIG2BETA
-from gsa_mixer.utils import AnnotUnivariateParams
 from .utils import BivariateParams
 from .utils import _calculate_univariate_uncertainty
+from .utils_obsolete import UnivariateParams_obsolete
 from .cli import apply_univariate_fit_sequence
 from .cli import apply_bivariate_fit_sequence
 

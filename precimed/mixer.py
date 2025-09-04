@@ -6,7 +6,6 @@ import argparse
 
 from version import VERSION as __version__
 import gsa_mixer.cli
-import bivar_mixer.cli
 import common.utils_cli
 
 MASTHEAD = "***********************************************************************\n"
@@ -35,7 +34,8 @@ if __name__ == "__main__":
         gsa_mixer.cli.parser_snps_add_arguments(func=gsa_mixer.cli.execute_snps_parser, parser=subparsers.add_parser("snps", parents=[parent_parser], help='generate random sets of SNPs'))
         gsa_mixer.cli.parser_plsa_add_arguments(func=gsa_mixer.cli.execute_plsa_parser, parser=subparsers.add_parser("plsa", parents=[parent_parser], help='fit PLSA model'))
         gsa_mixer.cli.parser_split_sumstats_add_arguments(func=gsa_mixer.cli.execute_split_sumstats_parser, parser=subparsers.add_parser("split_sumstats", parents=[parent_parser], help='split summary statistics file per-chromosome'))
-    else:
+    elif sys.argv[1] in ['fit1', 'test1', 'fit2', 'test2', 'matlab', 'perf', 'fixed_effects']:
+        raise NotImplementedError()
         bivar_mixer.cli.parser_add_arguments(func=bivar_mixer.cli.execute_fit1_or_test1_parser, parser=subparsers.add_parser("fit1", parents=[parent_parser], help='fit univariate MiXeR model'), analysis_type="fit1")
         bivar_mixer.cli.parser_add_arguments(func=bivar_mixer.cli.execute_fit1_or_test1_parser, parser=subparsers.add_parser("test1", parents=[parent_parser], help='test univariate MiXeR model'), analysis_type="test1")
         bivar_mixer.cli.parser_add_arguments(func=bivar_mixer.cli.execute_fit2_or_test2_parser, parser=subparsers.add_parser("fit2", parents=[parent_parser], help='fit bivariate MiXeR model'), analysis_type="fit2")
