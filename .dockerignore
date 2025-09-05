@@ -2,3 +2,4 @@
 *.sif
 reference/*
 manuscript/*
+src/build

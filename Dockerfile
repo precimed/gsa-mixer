@@ -11,12 +11,12 @@ LABEL org.opencontainers.image.authors=https://github.com/precimed/gsa-mixer/gra
 
 # Essential tools
 WORKDIR /tmp
-COPY /scripts/apt_get_essential.sh .
+COPY /docker/scripts/apt_get_essential.sh .
 RUN bash apt_get_essential.sh && \
     rm apt_get_essential.sh
 
 WORKDIR /tmp
-COPY /scripts/install_mambaforge.sh .
+COPY /docker/scripts/install_mambaforge.sh .
 RUN bash install_mambaforge.sh && \
     rm install_mambaforge.sh
 
@@ -49,12 +49,12 @@ RUN yes | pip install intervaltree
 
 # Plink (as python_convert depends on plink)
 WORKDIR /tools/plink
-COPY /scripts/install_plink.sh /tmp
+COPY /docker/scripts/install_plink.sh /tmp
 RUN chmod +x /tmp/install_plink.sh
 RUN bash /tmp/install_plink.sh
 
 WORKDIR /tools/plink2
-COPY /scripts/install_plink2.sh /tmp
+COPY /docker/scripts/install_plink2.sh /tmp
 RUN chmod +x /tmp/install_plink2.sh
 RUN bash /tmp/install_plink2.sh
 
@@ -62,12 +62,12 @@ WORKDIR /tools/python_convert
 RUN git clone https://github.com/precimed/python_convert.git . && git reset --hard bcde562f0286f3ff271dbb54d486d4ca1d40ae36
 
 WORKDIR /tools/simu
-COPY /scripts/install_simu.sh /tmp
+COPY /docker/scripts/install_simu.sh /tmp
 RUN chmod +x /tmp/install_simu.sh
 RUN bash /tmp/install_simu.sh
 
 WORKDIR /tools/magma
-COPY /scripts/install_magma.sh /tmp
+COPY /docker/scripts/install_magma.sh /tmp
 RUN chmod +x /tmp/install_magma.sh
 RUN bash /tmp/install_magma.sh
 
@@ -77,8 +77,8 @@ RUN cd boost_1_69_0 && ./bootstrap.sh --with-libraries=program_options,filesyste
 
 WORKDIR /tools/mixer
 COPY /src /tools/mixer/src
-COPY /precimed /tools/mixer/precimed
 RUN if [ -d "/tools/mixer/src/build" ]; then rm -Rf /tools/mixer/src/build; fi
 RUN mkdir src/build && cd src/build && cmake .. -DBoost_NO_BOOST_CMAKE=ON -DBOOST_ROOT=/tools/boost_1_69_0 && make -j16 bgmg
 ENV BGMG_SHARED_LIBRARY="/tools/mixer/src/build/lib/libbgmg.so"
 
+COPY /precimed /tools/mixer/precimed
