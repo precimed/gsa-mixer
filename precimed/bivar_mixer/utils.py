@@ -50,10 +50,10 @@ class UnivariateParams(object):
         return {'pi': self._pi, 'sig2_beta': self._sig2_beta, 'sig2_zero': self._sig2_zero}
 
     def find_pi_mat(self, num_snp):
-        return self._pi * np.ones(shape=(num_snp, 1), dtype=np.float32)
+        return np.float32(self._pi) * np.ones(shape=(num_snp, 1), dtype=np.float32)
 
     def find_sig2_mat(self, num_snp):
-        return self._sig2_beta * np.ones(shape=(num_snp, 1), dtype=np.float32)
+        return np.float32(self._sig2_beta) * np.ones(shape=(num_snp, 1), dtype=np.float32)
 
     def cost(self, lib, trait):
         value = lib.calc_unified_univariate_cost(trait, self.find_pi_mat(lib.num_snp), self.find_sig2_mat(lib.num_snp), 
@@ -69,8 +69,10 @@ class UnivariateParams(object):
                                                sig2_zeroA=self._sig2_zero, sig2_zeroC=1, sig2_zeroL=0, zgrid=zgrid)
 
     def power(self, lib, trait, ngrid, zthresh=5.45):
-        return lib.calc_unified_univariate_power(trait, self.find_pi_mat(lib.num_snp), self.find_sig2_mat(lib.num_snp),
-                                                 sig2_zeroA=self._sig2_zero, sig2_zeroC=1, sig2_zeroL=0, zthresh=zthresh, ngrid=ngrid)
+        svec_num, svec_denom = lib.calc_unified_univariate_power(
+            trait, self.find_pi_mat(lib.num_snp), self.find_sig2_mat(lib.num_snp),
+            sig2_zeroA=self._sig2_zero, sig2_zeroC=1, sig2_zeroL=0, zthresh=zthresh, ngrid=ngrid)
+        return np.divide(svec_num, svec_denom)
 
 class BivariateParams(object):
     def __init__(self, pi=None, sig2_beta=None, rho_beta=None, sig2_zero=None, rho_zero=None, params1=None, params2=None, pi12=None):

@@ -54,4 +54,8 @@ data/trait2.test1.json
 data/trait2.test1.log
 data/test2.json
 data/trait2.test1.snps.csv
+data/ldsc_reference_chr@.done
+data/trait1.chr@.sumstats.gz.log
+data/trait2.chr@.sumstats.gz.log
+tiny/chr21qc.mixer.ld
 
