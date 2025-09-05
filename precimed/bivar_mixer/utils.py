@@ -13,7 +13,6 @@ import numpy as np
 import numdifftools as nd
 import scipy.stats
 from scipy.interpolate import interp1d
-import json
 
 epsval = np.finfo(float).eps
 minval = np.finfo(float).min
@@ -624,6 +623,13 @@ def _calculate_bivariate_uncertainty(parametrization, ci_samples, alpha, totalhe
     return result, sample
 
 def calc_qq_data(zvec, weights, hv_logp):
+    assert(np.all(np.isfinite(zvec)))
+    assert(np.all(np.isfinite(weights)))
+    if np.sum(weights) == 0:
+        retval = np.empty(hv_logp.shape)
+        retval[:] = np.nan
+        return retval
+
     # Step 0. calculate weights for all data poitns
     # Step 1. convert zvec to -log10(pvec)
     # Step 2. sort pval from large (1.0) to small (0.0), and take empirical cdf of this distribution
@@ -632,7 +638,7 @@ def calc_qq_data(zvec, weights, hv_logp):
     data_y = -np.log10(2*scipy.stats.norm.cdf(-np.abs(zvec)))           # step 1
     si = np.argsort(data_y); data_y = data_y[si]                        # step 2
     data_x=-np.log10(np.flip(np.cumsum(np.flip(data_weights[si]))))     # step 2
-    data_idx = np.not_equal(data_y, np.concatenate((data_y[1:], [np.Inf])))
+    data_idx = np.not_equal(data_y, np.concatenate((data_y[1:], [np.inf])))
     data_logpvec = interp1d(data_y[data_idx], data_x[data_idx],         # step 3
                             bounds_error=False, fill_value=np.nan)(hv_logp)
     return data_logpvec
@@ -644,89 +650,80 @@ def calc_qq_model(zgrid, pdf, hv_z):
                                          bounds_error=False, fill_value=np.nan)(hv_z))
     return model_logpvec
 
-def calc_qq_plot(libbgmg, params, trait_index, downsample, mask=None, title=''):
+def calc_qq_plot(libbgmg, params, trait_index, downsample_factor, mask=None, title=''):
     # mask can subset SNPs that are going into QQ curve, for example LDxMAF bin.
     if mask is None:
         mask = np.ones((libbgmg.num_tag, ), dtype=bool)
 
-    zvec = libbgmg.get_zvec(trait_index)[mask]
+    zvec = libbgmg.get_zvec(trait_index)
+    nvec = libbgmg.get_nvec(trait_index)
+    weights = libbgmg.weights
+    defvec = mask & (weights > 0) & np.isfinite(zvec) & np.isfinite(nvec)
 
     # Regular grid (vertical axis of the QQ plots)
-    hv_z = np.linspace(0, np.min([np.max(np.abs(zvec)), 38.0]), 1000)
+    hv_z = np.linspace(0, 38, 1000)
+    assert(np.all(np.isfinite(hv_z)))
     hv_logp = -np.log10(2*scipy.stats.norm.cdf(-hv_z))
 
     # Empirical (data) QQ plot
-    data_logpvec = calc_qq_data(zvec, libbgmg.weights[mask], hv_logp)
+    data_logpvec = calc_qq_data(zvec[defvec], weights[defvec], hv_logp)
 
     # Estimated (model) QQ plots
-    model_weights = libbgmg.weights
-    mask_indices = np.nonzero(mask)[0]
-    model_mask = np.zeros((len(model_weights), ), dtype=bool)
-    model_mask[mask_indices[range(0, len(mask_indices), downsample)]] = 1
-    model_weights[~model_mask] = 0
-    model_weights = model_weights/np.sum(model_weights)
+    model_weights = downsample_weights(weights, downsample_factor, defvec, normalize=True)
 
-    zgrid = np.arange(0, 38.0, 0.05, np.float32)
+    if np.sum(model_weights) == 0:
+        model_logpvec = np.empty(hv_logp.shape)
+        model_logpvec[:] = np.nan
+    else:
+        zgrid = np.arange(0, 38.0, 0.05, np.float32)
+        try:
+            libbgmg.weights = model_weights
+            pdf = params.pdf(libbgmg, trait_index, zgrid)
+        finally:
+            libbgmg.weights = weights
 
-    original_weights = libbgmg.weights
-    libbgmg.weights = model_weights
-    pdf = params.pdf(libbgmg, trait_index, zgrid)
-    libbgmg.weights = original_weights
+        zgrid = np.concatenate((np.flip(-zgrid[1:]), zgrid))  # extend [0, 38] to [-38, 38]
+        pdf = np.concatenate((np.flip(pdf[1:]), pdf))
+        model_logpvec = calc_qq_model(zgrid, pdf, hv_z)
 
-    pdf = pdf / np.sum(model_weights)
-    zgrid = np.concatenate((np.flip(-zgrid[1:]), zgrid))  # extend [0, 38] to [-38, 38]
-    pdf = np.concatenate((np.flip(pdf[1:]), pdf))
-    model_logpvec = calc_qq_model(zgrid, pdf, hv_z)
-    #plt.plot(model_logpvec, hv_logp, '-')
-    #plt.plot(data_logpvec, hv_logp, '-')
-    #plt.plot(hv_logp, hv_logp, '--k')
+    return {'hv_logp': hv_logp,
+            'data_logpvec': data_logpvec,
+            'model_logpvec': model_logpvec,
+            'n_snps': int(np.sum(defvec)),
+            'sum_data_weights': float(np.sum(weights[defvec])),
+            'title' : title}
 
-    return {'hv_logp': hv_logp, 'data_logpvec': data_logpvec, 'model_logpvec': model_logpvec,
-            'n_snps': int(np.sum(mask)), 'sum_data_weights': float(np.sum(libbgmg.weights[mask])), 'title' : title}
+def downsample_weights(weights, downsample_factor, defvec, normalize=True):
+    if np.sum(weights[defvec]) == 0:
+        return weights.copy()
+    idx = np.nonzero(defvec)[0]
+    num_samples = np.random.binomial(n=len(idx), p=1.0/float(downsample_factor))
+    idx_downsample = np.random.choice(idx, size=num_samples, replace=False)
+    new_weights = np.zeros((len(weights), ), dtype=np.float32)
+    new_weights[idx_downsample] = weights[idx_downsample]
+    if np.sum(new_weights) == 0:
+        new_weights = weights.copy()  # fall back to using the entire array
+    if normalize:
+        new_weights = new_weights / np.sum(new_weights)
+    return new_weights
 
-def calc_power_curve(libbgmg, params, trait_index, downsample, nvec=None):
-    power_nvec = np.power(10, np.arange(3, 8, 0.1)) if (nvec is None) else nvec
+def calc_power_curve(libbgmg, params, trait_index, downsample_factor, nvec=None):
+    power_nvec = np.power(10, np.arange(0, 9, 0.1)) if (nvec is None) else nvec
 
-    original_weights = libbgmg.weights
-    model_weights = libbgmg.weights
+    zvec = libbgmg.get_zvec(trait_index)
+    nvec = libbgmg.get_nvec(trait_index)
+    weights = libbgmg.weights
+    defvec = (weights > 0) & np.isfinite(zvec) & np.isfinite(nvec)
 
-    mask = np.zeros((len(model_weights), ), dtype=bool)
-    mask[range(0, len(model_weights), downsample)] = 1
-    model_weights[~mask] = 0
-    model_weights = model_weights/np.sum(model_weights)
-
-    libbgmg.weights = model_weights     # temporary set downsampled weights
-    try:
-        power_svec = params.power(libbgmg, trait_index, power_nvec)
-        libbgmg.weights = original_weights  # restore original weights
-    except:
-        libbgmg.weights = original_weights  # restore original weights
-        return {}
+    model_weights = downsample_weights(weights, downsample_factor, defvec, normalize=True)
+    if np.sum(model_weights) == 0:
+        power_svec = np.empty(power_nvec.shape)
+        power_svec[:] = np.nan
+    else:
+        try:
+            libbgmg.weights = model_weights
+            power_svec = params.power(libbgmg, trait_index, power_nvec)
+        finally:
+            libbgmg.weights = weights
 
     return {'nvec': power_nvec, 'svec': power_svec}
-
-if False:
-    '''
-    # test that converters effectively map the range of parameters into unbounded domain that will work with fminsearch
-    def isclose(a, b, rel_tol=1e-09, abs_tol=2*epsval):
-        return abs(a-b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
-    tests = [(precimed.mixer.utils._log_exp_converter,        0.0, maxval, [0.00001, 0.001, 1.2, 1000, 10000]), 
-            (precimed.mixer.utils._logit_logistic_converter, 0.0, 1.0,   [0.00001, 0.001, 0.1, 0.9, 0.999, 0.99999]),
-            (precimed.mixer.utils._arctanh_tanh_converter,    -1.0, 1.0,  [-0.9999, -0.991, -0.9, 0.9, 0.999, 0.99999])]
-    for func, limLow, limHigh, values in tests:
-        for index, val in enumerate([limLow] + values + [limHigh]):
-            #print('{}: {} -> {} -> {}'.format(func, val, func(val, False), func(func(val, False), True)))
-            assert np.isfinite(func(val, False)), 'Error in {}({})'.format(func, val)
-            assert isclose(val, func(func(val, False), True)), 'Error in {}({})'.format(func, val)
-            isLimit = (index==0) or (index==(len(values)+ 1))
-            assert abs(func(val, False)) < (1000 if isLimit else 20), '{}({}) is too large ({})'.format(func, val, func(val, False))
-            assert abs(func(val, False)) > (0.001 if isLimit else 0.1), '{}({}) is too small ({})'.format(func, val, func(val, False))
-        assert isclose(func(-10000, True), limLow), '{} vs {}'.format(func(-10000, True), limLow)
-        assert isclose(func( 10000, True), limHigh), '{} vs {}'.format(func(10000, True), limHigh)
-
-
-    # validate that _vec_to_params and _params_to_vec complement each other in UnivariateParametrization 
-    pp=UnivariateParametrization(UnivariateParams(0.001, 1e-4, 1.23), None, 1)
-    UnivariateParametrization(pp._vec_to_params([2, -50, 4.5]), None, 1)._init_vec
-    # >>> [2.0, -50.00000075435396, 4.499999245646041]
-    '''

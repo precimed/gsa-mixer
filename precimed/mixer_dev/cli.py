@@ -44,10 +44,10 @@ from .utils import _calculate_bivariate_uncertainty_funcs
 
 from .utils_obsolete import UnivariateParams_obsolete
 
-from .utils import calc_qq_plot
-from .utils import calc_power_curve
-from .utils import calc_bivariate_qq
-from .utils import calc_bivariate_pdf
+from bivar_mixer.utils import calc_qq_plot
+from bivar_mixer.utils import calc_power_curve
+from bivar_mixer.cli import calc_bivariate_qq
+from bivar_mixer.cli import calc_bivariate_pdf
 
 import common.utils_cli
 
