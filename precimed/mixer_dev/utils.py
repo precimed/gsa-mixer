@@ -7,12 +7,11 @@
  
 import numpy as np
 import numdifftools as nd
-import scipy.stats
-from scipy.interpolate import interp1d
 from common.utils import _arctanh_tanh_converter, _log_exp_converter, _logit_logistic_converter
 from common.libbgmg import _auxoption_none, _auxoption_tagpdf
 
 import gsa_mixer.utils
+import bivar_mixer.utils
 
 def find_rg_sig2_factor(params1, params2):
     lib = params1._libbgmg
@@ -352,20 +351,6 @@ class BivariateParametrization_constUNIVARIATE_constRHOBETA_constPI(object):
         result = optimizer(self._calc_cost, self._init_vec)
         return self._vec_to_params(result.x), result
 
-def _hessian_robust(hessian, hessdiag):
-    # for noisy functions hessian might be badly estimated
-    # if we detect a problem with hessian fall back to hess diagonal
-    hessdiag[hessdiag < 0] = 1e15
-    hessdiag = np.diag(hessdiag)
-    if not np.isfinite(hessian).all(): return hessdiag
-    try:
-        hessinv = np.linalg.inv(hessian)
-    except np.linalg.LinAlgError as err:
-        return hessdiag
-    if not np.isfinite(hessinv).all(): return hessdiag
-    if np.less_equal(np.linalg.eigvals(hessinv), 0).any(): return hessdiag
-    return hessian
-
 def _calculate_univariate_uncertainty_funcs(alpha, NCKoef):
     funcs = [('pi', lambda x: x.pi),
              ('nc', lambda x: x.pi * x._libbgmg.num_snp),
@@ -385,8 +370,9 @@ def _calculate_univariate_uncertainty_funcs(alpha, NCKoef):
 def _calculate_univariate_uncertainty(params, parametrization, alpha, num_samples, NCKoef):
     init_vec = parametrization.params_to_vec(params)
     funcs, stats = _calculate_univariate_uncertainty_funcs(alpha, NCKoef)
-    hessian = _hessian_robust(nd.Hessian(parametrization.calc_cost)(init_vec), 
-                              nd.Hessdiag(parametrization.calc_cost)(init_vec))
+    hessian = bivar_mixer.utils._hessian_robust(
+        nd.Hessian(parametrization.calc_cost)(init_vec), 
+        nd.Hessdiag(parametrization.calc_cost)(init_vec))
     x_sample = np.random.multivariate_normal(init_vec, np.linalg.inv(hessian), num_samples)
     sample = [parametrization.vec_to_params(x) for x in x_sample]
     result = {}
@@ -440,183 +426,6 @@ def _calculate_bivariate_uncertainty_funcs(alpha, NCKoef):
              ('upper', lambda x: np.percentile(x, 100.0 * (1-alpha/2)))]
 
     return funcs, stats
-
-def calc_qq_data(zvec, weights, hv_logp):
-    assert(np.all(np.isfinite(zvec)))
-    assert(np.all(np.isfinite(weights)))
-    if np.sum(weights) == 0:
-        retval = np.empty(hv_logp.shape)
-        retval[:] = np.nan
-        return retval
-
-    # Step 0. calculate weights for all data poitns
-    # Step 1. convert zvec to -log10(pvec)
-    # Step 2. sort pval from large (1.0) to small (0.0), and take empirical cdf of this distribution
-    # Step 3. interpolate (data_x, data_y) curve, as we don't need 10M data points on QQ plots
-    data_weights = weights / np.sum(weights)                            # step 0
-    data_y = -np.log10(2*scipy.stats.norm.cdf(-np.abs(zvec)))           # step 1
-    si = np.argsort(data_y); data_y = data_y[si]                        # step 2
-    data_x=-np.log10(np.flip(np.cumsum(np.flip(data_weights[si]))))     # step 2
-    data_idx = np.not_equal(data_y, np.concatenate((data_y[1:], [np.inf])))
-    data_logpvec = interp1d(data_y[data_idx], data_x[data_idx],         # step 3
-                            bounds_error=False, fill_value=np.nan)(hv_logp)
-    return data_logpvec
-
-def calc_qq_model(zgrid, pdf, hv_z):
-    model_cdf = np.cumsum(pdf) * (zgrid[1] - zgrid[0])
-    model_cdf = 0.5 * (np.concatenate(([0.0], model_cdf[:-1])) + np.concatenate((model_cdf[:-1], [1.0])))
-    model_logpvec = -np.log10(2*interp1d(-zgrid[zgrid<=0], model_cdf[zgrid<=0],
-                                         bounds_error=False, fill_value=np.nan)(hv_z))
-    return model_logpvec
-
-def calc_qq_plot(libbgmg, params, trait_index, downsample_factor, mask=None, title=''):
-    # mask can subset SNPs that are going into QQ curve, for example LDxMAF bin.
-    if mask is None:
-        mask = np.ones((libbgmg.num_tag, ), dtype=bool)
-
-    zvec = libbgmg.get_zvec(trait_index)
-    nvec = libbgmg.get_nvec(trait_index)
-    weights = libbgmg.weights
-    defvec = mask & (weights > 0) & np.isfinite(zvec) & np.isfinite(nvec)
-
-    # Regular grid (vertical axis of the QQ plots)
-    hv_z = np.linspace(0, 38, 1000)
-    assert(np.all(np.isfinite(hv_z)))
-    hv_logp = -np.log10(2*scipy.stats.norm.cdf(-hv_z))
-
-    # Empirical (data) QQ plot
-    data_logpvec = calc_qq_data(zvec[defvec], weights[defvec], hv_logp)
-
-    # Estimated (model) QQ plots
-    model_weights = downsample_weights(weights, downsample_factor, defvec, normalize=True)
-
-    if np.sum(model_weights) == 0:
-        model_logpvec = np.empty(hv_logp.shape)
-        model_logpvec[:] = np.nan
-    else:
-        zgrid = np.arange(0, 38.0, 0.05, np.float32)
-        try:
-            libbgmg.weights = model_weights
-            pdf = params.pdf(libbgmg, trait_index, zgrid)
-        finally:
-            libbgmg.weights = weights
-
-        zgrid = np.concatenate((np.flip(-zgrid[1:]), zgrid))  # extend [0, 38] to [-38, 38]
-        pdf = np.concatenate((np.flip(pdf[1:]), pdf))
-        model_logpvec = calc_qq_model(zgrid, pdf, hv_z)
-
-    return {'hv_logp': hv_logp,
-            'data_logpvec': data_logpvec,
-            'model_logpvec': model_logpvec,
-            'n_snps': int(np.sum(defvec)),
-            'sum_data_weights': float(np.sum(weights[defvec])),
-            'title' : title}
-
-def calc_bivariate_pdf(libbgmg, params, downsample_factor):
-    weights = libbgmg.weights 
-    defvec = weights > 0
-    defvec = defvec & np.isfinite(libbgmg.zvec1) & np.isfinite(libbgmg.nvec1)
-    defvec = defvec & np.isfinite(libbgmg.zvec2) & np.isfinite(libbgmg.nvec2)
-    model_weights = downsample_weights(weights, downsample_factor, defvec, normalize=True)
-
-    zgrid = np.arange(-25, 25.00001, 0.05)
-    if np.sum(model_weights) == 0:
-        raise(ValueError('np.sum(model_weights) == 0; consider reducing --downsample-factor ?'))
-
-    try:
-        libbgmg.weights = model_weights
-        pdf = params.pdf(libbgmg, zgrid)
-    finally:
-        libbgmg.weights = weights
-
-    return zgrid, pdf
-
-def calc_bivariate_qq(libbgmg, zgrid, pdf):
-    zgrid_fine = np.arange(-25, 25.00001, 0.005)   # project to a finer grid
-    pdf_fine=scipy.interpolate.RectBivariateSpline(zgrid, zgrid, pdf)(zgrid_fine, zgrid_fine,grid=True)
-    pthresh_vec = [1, 0.1, 0.01, 0.001]
-    zthresh_vec = -scipy.stats.norm.ppf(np.array(pthresh_vec)/2)
-
-    defvec = libbgmg.weights > 0
-    defvec = defvec & np.isfinite(libbgmg.zvec1) & np.isfinite(libbgmg.nvec1)
-    defvec = defvec & np.isfinite(libbgmg.zvec2) & np.isfinite(libbgmg.nvec2)
-
-    zvec1=libbgmg.zvec1[defvec]
-    zvec2=libbgmg.zvec2[defvec]
-    weights = libbgmg.weights[defvec]
-
-    # Regular grid (vertical axis of the QQ plots)
-    hv_z = np.linspace(0, np.min([np.max(np.abs(np.concatenate((zvec1, zvec2)))), 38.0]), 1000)
-    hv_logp = -np.log10(2*scipy.stats.norm.cdf(-hv_z))
-
-    result = []
-    for zthresh, pthresh in zip(zthresh_vec, pthresh_vec):
-        mask = abs(zvec2)>=zthresh
-        data_logpvec = calc_qq_data(zvec1[mask], weights[mask], hv_logp)
-
-        pd_cond = np.sum(pdf_fine[abs(zgrid_fine) >= zthresh, :], axis=0)
-        pd_cond = pd_cond / np.sum(pd_cond) / (zgrid_fine[1]-zgrid_fine[0])
-        model_logpvec = calc_qq_model(zgrid_fine, pd_cond, hv_z)
-
-        title = 'T1|T2|{}'.format(pthresh)
-        result.append({'hv_logp': hv_logp,
-                       'data_logpvec': data_logpvec,
-                       'model_logpvec': model_logpvec,
-                       'n_snps': int(np.sum(mask)),
-                       'sum_data_weights': float(np.sum(weights[mask])),
-                       'title' : title})
-
-    for zthresh in zthresh_vec:
-        mask = abs(zvec1)>=zthresh
-        data_logpvec = calc_qq_data(zvec2[mask], weights[mask], hv_logp)
-
-        pd_cond = np.sum(pdf_fine[:, abs(zgrid_fine) >= zthresh], axis=1)
-        pd_cond = pd_cond / np.sum(pd_cond) / (zgrid_fine[1]-zgrid_fine[0])
-        model_logpvec = calc_qq_model(zgrid_fine, pd_cond, hv_z)
-
-        title = 'T2|T1|{}'.format(pthresh)
-        result.append({'hv_logp': hv_logp,
-                       'data_logpvec': data_logpvec,
-                       'model_logpvec': model_logpvec,
-                       'n_snps': int(np.sum(mask)),
-                       'sum_data_weights': float(np.sum(weights[mask])),
-                       'title' : title})
-    return result
-
-def downsample_weights(weights, downsample_factor, defvec, normalize=True):
-    if np.sum(weights[defvec]) == 0:
-        return weights.copy()
-    idx = np.nonzero(defvec)[0]
-    num_samples = np.random.binomial(n=len(idx), p=1.0/float(downsample_factor))
-    idx_downsample = np.random.choice(idx, size=num_samples, replace=False)
-    new_weights = np.zeros((len(weights), ), dtype=np.float32)
-    new_weights[idx_downsample] = weights[idx_downsample]
-    if np.sum(new_weights) == 0:
-        new_weights = weights.copy()  # fall back to using the entire array
-    if normalize:
-        new_weights = new_weights / np.sum(new_weights)
-    return new_weights
-
-def calc_power_curve(libbgmg, params, trait_index, downsample_factor, nvec=None):
-    power_nvec = np.power(10, np.arange(0, 9, 0.1)) if (nvec is None) else nvec
-
-    zvec = libbgmg.get_zvec(trait_index)
-    nvec = libbgmg.get_nvec(trait_index)
-    weights = libbgmg.weights
-    defvec = (weights > 0) & np.isfinite(zvec) & np.isfinite(nvec)
-
-    model_weights = downsample_weights(weights, downsample_factor, defvec, normalize=True)
-    if np.sum(model_weights) == 0:
-        power_svec = np.empty(power_nvec.shape)
-        power_svec[:] = np.nan
-    else:
-        try:
-            libbgmg.weights = model_weights
-            power_svec = params.power(libbgmg, trait_index, power_nvec)
-        finally:
-            libbgmg.weights = weights
-
-    return {'nvec': power_nvec, 'svec': power_svec}
 
 def _params_to_dict(params):
     if isinstance(params, BivariateParams):

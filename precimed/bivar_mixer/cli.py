@@ -4,18 +4,13 @@
 MiXeR software: Univariate and Bivariate Causal Mixture for GWAS
 '''
 
-import sys
-import os
 import argparse
 import numpy as np
 import pandas as pd
-from numpy import ma
 import scipy.optimize
-import logging
 import json
 import scipy.stats
 import random
-from scipy.interpolate import interp1d
 import time
 import common.utils_cli
 
@@ -31,8 +26,6 @@ from .utils import BivariateParametrization_constSIG2BETA_constSIG2ZERO_infPI_ma
 from .utils import BivariateParametrization_constUNIVARIATE_natural_axis             # diffevo, neldermead
 from .utils import BivariateParametrization_constUNIVARIATE_constRG_constRHOZERO     # brute1, brent1
 from .utils import BivariateParametrization_constUNIVARIATE                          # uncertainty
-from .utils import _hessian_robust
-from .utils import _max_rg
 from .utils import _calculate_univariate_uncertainty
 from .utils import _calculate_univariate_uncertainty_funcs
 from .utils import _calculate_bivariate_uncertainty
@@ -42,6 +35,7 @@ from .utils import calc_qq_data
 from .utils import calc_qq_model
 from .utils import calc_qq_plot
 from .utils import calc_power_curve
+from .utils import downsample_weights
 
 from common.utils import NumpyEncoder
 from common.libbgmg import _cost_calculator_sampling, _cost_calculator_convolve, _cost_calculator_gaussian, _cost_calculator_smplfast
@@ -172,12 +166,14 @@ def generate_args_parser(__version__=None):
     return parser
 
 def load_univariate_params_file(fname):
+    if isinstance(fname, UnivariateParams): return fname  # used for unit tests
     data = json.loads(open(fname).read())
     if 'analysis' not in data or data['analysis'] != 'univariate': raise ValueError('Invalid univariate results file')
     p = data['params']
     return UnivariateParams(pi=p['pi'], sig2_beta=p['sig2_beta'], sig2_zero=p['sig2_zero'])
 
 def load_bivariate_params_file(fname):
+    if isinstance(fname, BivariateParams): return fname  # used for unit tests
     data = json.loads(open(fname).read())
     if 'analysis' not in data or data['analysis'] != 'bivariate': raise ValueError('Invalid bivariate results file')
     p = data['params']
@@ -368,37 +364,38 @@ def apply_bivariate_fit_sequence(args, libbgmg):
     if params == None: raise(RuntimeError('Empty --fit-sequence'))
     return (params, params1, params2, optimize_result_sequence)
 
-def calc_bivariate_pdf(libbgmg, params, downsample):
-    original_weights = libbgmg.weights
-    if not np.all(np.isfinite(original_weights)): raise(RuntimeError('undefined weights not supported'))
-    if not np.all(np.isfinite(libbgmg.zvec1)): raise(RuntimeError('undefined weights not supported'))
-    if not np.all(np.isfinite(libbgmg.zvec2)): raise(RuntimeError('undefined weights not supported'))
-
-    model_weights = libbgmg.weights
-    mask = np.zeros((len(model_weights), ), dtype=bool)
-    mask[range(0, len(model_weights), downsample)] = 1
-    model_weights[~mask] = 0
-    model_weights = model_weights/np.sum(model_weights)
+def calc_bivariate_pdf(libbgmg, params, downsample_factor):
+    weights = libbgmg.weights 
+    defvec = weights > 0
+    defvec = defvec & np.isfinite(libbgmg.zvec1) & np.isfinite(libbgmg.nvec1)
+    defvec = defvec & np.isfinite(libbgmg.zvec2) & np.isfinite(libbgmg.nvec2)
+    model_weights = downsample_weights(weights, downsample_factor, defvec, normalize=True)
 
     zgrid = np.arange(-25, 25.00001, 0.05)
-    [zgrid1, zgrid2] = np.meshgrid(zgrid, zgrid)
-    zgrid1=zgrid1[zgrid>=0, :]; zgrid2=zgrid2[zgrid>=0, :]
+    if np.sum(model_weights) == 0:
+        raise(ValueError('np.sum(model_weights) == 0; consider reducing --downsample-factor ?'))
 
-    libbgmg.weights = model_weights     # temporary set downsampled weights
-    pdf = params.pdf(libbgmg, zgrid)
-    pdf = pdf/np.sum(model_weights)
-    libbgmg.weights = original_weights  # restore original weights
+    try:
+        libbgmg.weights = model_weights
+        pdf = params.pdf(libbgmg, zgrid)
+    finally:
+        libbgmg.weights = weights
 
     return zgrid, pdf
 
 def calc_bivariate_qq(libbgmg, zgrid, pdf):
     zgrid_fine = np.arange(-25, 25.00001, 0.005)   # project to a finer grid
-    pdf_fine=scipy.interpolate.interp2d(zgrid, zgrid, pdf)(zgrid_fine, zgrid_fine)
+    pdf_fine=scipy.interpolate.RectBivariateSpline(zgrid, zgrid, pdf)(zgrid_fine, zgrid_fine,grid=True)
     pthresh_vec = [1, 0.1, 0.01, 0.001]
     zthresh_vec = -scipy.stats.norm.ppf(np.array(pthresh_vec)/2)
 
-    zvec1=libbgmg.zvec1
-    zvec2=libbgmg.zvec2
+    defvec = libbgmg.weights > 0
+    defvec = defvec & np.isfinite(libbgmg.zvec1) & np.isfinite(libbgmg.nvec1)
+    defvec = defvec & np.isfinite(libbgmg.zvec2) & np.isfinite(libbgmg.nvec2)
+
+    zvec1=libbgmg.zvec1[defvec]
+    zvec2=libbgmg.zvec2[defvec]
+    weights = libbgmg.weights[defvec]
 
     # Regular grid (vertical axis of the QQ plots)
     hv_z = np.linspace(0, np.min([np.max(np.abs(np.concatenate((zvec1, zvec2)))), 38.0]), 1000)
@@ -407,27 +404,35 @@ def calc_bivariate_qq(libbgmg, zgrid, pdf):
     result = []
     for zthresh, pthresh in zip(zthresh_vec, pthresh_vec):
         mask = abs(zvec2)>=zthresh
-        data_logpvec = calc_qq_data(zvec1[mask], libbgmg.weights[mask], hv_logp)
+        data_logpvec = calc_qq_data(zvec1[mask], weights[mask], hv_logp)
 
         pd_cond = np.sum(pdf_fine[abs(zgrid_fine) >= zthresh, :], axis=0)
         pd_cond = pd_cond / np.sum(pd_cond) / (zgrid_fine[1]-zgrid_fine[0])
         model_logpvec = calc_qq_model(zgrid_fine, pd_cond, hv_z)
 
         title = 'T1|T2|{}'.format(pthresh)
-        result.append({'hv_logp': hv_logp, 'data_logpvec': data_logpvec, 'model_logpvec': model_logpvec,
-                       'n_snps': int(np.sum(mask)), 'sum_data_weights': float(np.sum(libbgmg.weights[mask])), 'title' : title})
+        result.append({'hv_logp': hv_logp,
+                       'data_logpvec': data_logpvec,
+                       'model_logpvec': model_logpvec,
+                       'n_snps': int(np.sum(mask)),
+                       'sum_data_weights': float(np.sum(weights[mask])),
+                       'title' : title})
 
     for zthresh in zthresh_vec:
         mask = abs(zvec1)>=zthresh
-        data_logpvec = calc_qq_data(zvec2[mask], libbgmg.weights[mask], hv_logp)
+        data_logpvec = calc_qq_data(zvec2[mask], weights[mask], hv_logp)
 
         pd_cond = np.sum(pdf_fine[:, abs(zgrid_fine) >= zthresh], axis=1)
         pd_cond = pd_cond / np.sum(pd_cond) / (zgrid_fine[1]-zgrid_fine[0])
         model_logpvec = calc_qq_model(zgrid_fine, pd_cond, hv_z)
 
         title = 'T2|T1|{}'.format(pthresh)
-        result.append({'hv_logp': hv_logp, 'data_logpvec': data_logpvec, 'model_logpvec': model_logpvec,
-                       'n_snps': int(np.sum(mask)), 'sum_data_weights': float(np.sum(libbgmg.weights[mask])), 'title' : title})
+        result.append({'hv_logp': hv_logp,
+                       'data_logpvec': data_logpvec,
+                       'model_logpvec': model_logpvec,
+                       'n_snps': int(np.sum(mask)),
+                       'sum_data_weights': float(np.sum(weights[mask])),
+                       'title' : title})
     return result
 
 def initialize_mixer_plugin(args):
