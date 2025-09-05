@@ -5,17 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - https://github.com/precimed/gsa-mixer
+## [2.2.0] - https://github.com/precimed/gsa-mixer
 
 ### Added
 
 * ``scripts/MIXER.job`` script with instructions reproducing univariate and bivariate MiXeR v1.3 analyses.
-* ``mixer.py fit2 --fit-sequence neldermead-pi`` option for fitting regional bivariate models.
+* ``mixer_dev.py fit2 --fit-sequence neldermead-pi`` option for fitting regional bivariate models.
 
 ### Changed
 
+* roll back ``mixer.py fit1,test1,fit2,test2`` and ``mixer_figures.py`` to match the code from MiXeR v1.3 (precimed/mixer repo),
+  except for the bug fixes.
+* move all experimental features into ``mixer_dev.py``, and update ``scripts/PLSA_MIXER_[UNIVAR|BIVAR].job`` accordingly
+  (note that new ``mixer_dev.py figures_one,figures_two,combine`` analyses implements functionality of the ``mixer_figures.py``)
 * change Dockerfile to use Ubuntu 24.04 as base image, upgrade dependencies accordingly
-* standardize location of ``gsa-mixer.sif`` across scripts
 * use ``sep=r'\s+'`` instead of ``delim_whitespace=True`` in ``pandas.read_csv`` calls
 
 ## [2.1.1] - 2025-02-05 - https://github.com/precimed/gsa-mixer
@@ -26,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.0] - 2024-09-25 - https://github.com/precimed/gsa-mixer
 
-This version includes various fixes to support ``mixer.py [fit1,test1,fit2,test2]`` (univariate and cross-trait) analyses, plus a few new experimental options.
+This version includes various fixes to support ``mixer.py [fit1,test1,fit2,test2]`` (univariate and cross-trait) analyses, plus a few new experimental options. In version ``v2.2.0`` this was declerated experimental, and moved to ``mixer_dev.py``
 
 ### Added
 

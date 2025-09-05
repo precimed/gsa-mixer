@@ -21,10 +21,7 @@ export COMMON_FLAGS=""
 export COMMON_FLAGS="${COMMON_FLAGS} --bim-file /REF/ldsc/1000G_EUR_Phase3_plink/1000G.EUR.QC.@.bim"
 export COMMON_FLAGS="${COMMON_FLAGS} --ld-file /REF/ldsc/1000G_EUR_Phase3_plink/1000G.EUR.QC.@.run4.ld"
 export COMMON_FLAGS="${COMMON_FLAGS} --threads ${SLURM_CPUS_PER_TASK}"
-
-export COMMON_FLAGS="${COMMON_FLAGS} --use-complete-tag-indices"
 export COMMON_FLAGS="${COMMON_FLAGS} --exclude-ranges MHC"
-export COMMON_FLAGS="${COMMON_FLAGS} --disable-inverse-ld-score-weights --randprune-r2 0.1 --randprune-n 64 --hardprune-maf 0"
 
 export PYTHON="singularity exec --home=pwd:/home $GITHUB/precimed/gsa-mixer/containers/latest/gsa-mixer.sif python"
 export MIXER_PY="$PYTHON         /tools/mixer/precimed/mixer.py"

@@ -41,7 +41,7 @@ export OUT_FOLDER=${GITHUB}/precimed/gsa-mixer/out
 export BIND="--bind /home/oleksanf:/home/oleksanf"
 
 # select which analyses to trigger
-export DO_MIXER=true
+export DO_GSA_MIXER=true
 export DO_MAGMA=true
 
 # standard GSA-MiXeR pipeline begins here - change only if you know what you're doing
@@ -71,7 +71,7 @@ if [[ ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.sumstats.gz -nt ${SUMSTATS_FOLDER}/${S
       --out ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.chr@.sumstats.gz
 fi
 
-if ${DO_MIXER}; then
+if ${DO_GSA_MIXER}; then
 
 # GSA-MiXeR analysis - baseline
 ${MIXER_PY} plsa --gsa-base \

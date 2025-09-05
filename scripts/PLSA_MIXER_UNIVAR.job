@@ -19,8 +19,7 @@ export SINGULARITY_BIND=
 export MIXER_SIF=/ess/p697/data/durable/s3-api/github/precimed/gsa-mixer/containers/latest/gsa-mixer.sif
 md5sum ${MIXER_SIF}
 
-export MIXER_PY="singularity exec --home $PWD:/home --bind /ess/p697:/ess/p697 ${MIXER_SIF} python         /tools/mixer/precimed/mixer.py"
-export MIXER_FIGURES_PY="singularity exec --home $PWD:/home --bind /ess/p697:/ess/p697 ${MIXER_SIF} python /tools/mixer/precimed/mixer_figures.py"
+export MIXER_DEV_PY="singularity exec --home $PWD:/home --bind /ess/p697:/ess/p697 ${MIXER_SIF} python /tools/mixer/precimed/mixer_dev.py"
 
 export ANALYSIS_ROOT=<your_working_folder>
 export OUT_FOLDER=${ANALYSIS_ROOT}/out
@@ -52,7 +51,7 @@ if true; then
   # ${MIXER_PY} split_sumstats --trait1-file ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.sumstats.gz --out ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.chr@.sumstats.gz
 
   echo -e '\n=== PLSA FIT0 ===========================================================================\n'
-  ${MIXER_PY} plsa --gsa-base ${COMMON_FLAGS} \
+  ${MIXER_DEV_PY} plsa --gsa-base ${COMMON_FLAGS} \
           --trait1-file ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.chr@.sumstats.gz \
           --out ${OUT_FOLDER}/${SUMSTATS_FILE}_rep${REP}.fit0 \
           --extract ${REFERENCE_FOLDER}/hrc_EUR_qc/hrc_EUR_qc.prune_rand2M_rep${REP}.snps --hardprune-r2 0.8 \
@@ -63,7 +62,7 @@ if true; then
           --seed $((REP+1000)) --threads ${THREADS} ${EXTRA_FLAGS_U}
 
   echo -e '\n==== PLSA FIT1 ==========================================================================\n'
-  ${MIXER_PY} fit1 ${COMMON_FLAGS} \
+  ${MIXER_DEV_PY} fit1 ${COMMON_FLAGS} \
           --trait1-file ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.sumstats.gz \
           --out ${OUT_FOLDER}/${SUMSTATS_FILE}_rep${REP}.fit1 \
           --load-params-file ${OUT_FOLDER}/${SUMSTATS_FILE}_rep${REP}.fit0.json \
@@ -73,7 +72,7 @@ if true; then
           --seed $((REP+1000)) --threads ${THREADS} ${EXTRA_FLAGS_U} 
 
   echo -e '\n==== PLSA TEST1 ==========================================================================\n'
-  ${MIXER_PY} test1 ${COMMON_FLAGS} \
+  ${MIXER_DEV_PY} test1 ${COMMON_FLAGS} \
           --trait1-file ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.sumstats.gz \
           --out ${OUT_FOLDER}/${SUMSTATS_FILE}_rep${REP}.test1 \
           --load-params-file ${OUT_FOLDER}/${SUMSTATS_FILE}_rep${REP}.fit1.json \
@@ -82,17 +81,17 @@ if true; then
           --seed $((REP+1000)) --threads ${THREADS} ${EXTRA_FLAGS_U}  
 fi
 
-# non-PLSA analysis (old MiXeR version)
+# non-PLSA analysis using old MiXeR model
 if false; then
   echo -e '\n==== FIT1 ===============================================================================\n'
-  ${MIXER_PY} fit1 ${COMMON_FLAGS} \
+  ${MIXER_DEV_PY} fit1 ${COMMON_FLAGS} \
           --trait1-file ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.sumstats.gz \
           --out ${OUT_FOLDER}/${SUMSTATS_FILE}_rep${REP}.fit1 \
           --extract ${REFERENCE_FOLDER}/hrc_EUR_qc/hrc_EUR_qc.prune_rand2M_rep${REP}.snps --hardprune-r2 0.8 \
           --seed $((REP+1000)) --threads ${THREADS} ${EXTRA_FLAGS_U}
 
   echo -e '\n==== TEST1 ==============================================================================\n'
-  ${MIXER_PY} test1 ${COMMON_FLAGS} \
+  ${MIXER_DEV_PY} test1 ${COMMON_FLAGS} \
           --trait1-file ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.sumstats.gz \
           --out ${OUT_FOLDER}/${SUMSTATS_FILE}_rep${REP}.test1 \
           --load-params-file ${OUT_FOLDER}/${SUMSTATS_FILE}_rep${REP}.fit1.json \
@@ -102,15 +101,14 @@ fi
 
 #if [[ "${SLURM_ARRAY_TASK_ID}" -eq 1 ]]; then
 #  echo -e '\n==== COMBINE / FIGURES ==================================================================\n'
-#  ${MIXER_FIGURES_PY} combine --json ${OUT_FOLDER}/${SUMSTATS_FILE}_rep@.fit1.json --out ${OUT_FOLDER}/${SUMSTATS_FILE}_rep@.fit1
-#  ${MIXER_FIGURES_PY} combine --json ${OUT_FOLDER}/${SUMSTATS_FILE}_rep@.test1.json --out ${OUT_FOLDER}/${SUMSTATS_FILE}_rep@.test1
-#  ${MIXER_FIGURES_PY} one --json ${OUT_FOLDER}/${SUMSTATS_FILE}_rep@.fit1.json --trait1 ${SUMSTATS_FILE} --out ${OUT_FOLDER}/${SUMSTATS_FILE}.fit1 --statistic mean std
-#  ${MIXER_FIGURES_PY} one --json ${OUT_FOLDER}/${SUMSTATS_FILE}_rep@.test1.json --trait1 ${SUMSTATS_FILE} --out ${OUT_FOLDER}/${SUMSTATS_FILE}.test1 --statistic mean std
+#  ${MIXER_DEV_PY} combine --json ${OUT_FOLDER}/${SUMSTATS_FILE}_rep@.fit1.json --out ${OUT_FOLDER}/${SUMSTATS_FILE}_rep@.fit1
+#  ${MIXER_DEV_PY} combine --json ${OUT_FOLDER}/${SUMSTATS_FILE}_rep@.test1.json --out ${OUT_FOLDER}/${SUMSTATS_FILE}_rep@.test1
+#  ${MIXER_DEV_PY} figures_one --json ${OUT_FOLDER}/${SUMSTATS_FILE}_rep@.fit1.json --trait1 ${SUMSTATS_FILE} --out ${OUT_FOLDER}/${SUMSTATS_FILE}.fit1 --statistic mean std
+#  ${MIXER_DEV_PY} figures_one --json ${OUT_FOLDER}/${SUMSTATS_FILE}_rep@.test1.json --trait1 ${SUMSTATS_FILE} --out ${OUT_FOLDER}/${SUMSTATS_FILE}.test1 --statistic mean std
 #fi
 
 # Run the following to make a .csv table with results across multiple traits
-#   ${MIXER_FIGURES_PY} one --json ${OUT_FOLDER}/*_rep@.fit1.json --out ${OUT_FOLDER}/UNIVAR_results_fit1 --statistic mean std
+#   ${MIXER_DEV_PY} figures_one --json ${OUT_FOLDER}/*_rep@.fit1.json --out ${OUT_FOLDER}/UNIVAR_results_fit1 --statistic mean std
 #
 # Run the following if you're interested to check multiple power curves on one figure:
-#   ${MIXER_FIGURES_PY} one --json ${OUT_FOLDER}/*_rep@.test1.json --out ${OUT_FOLDER}/UNIVAR_results_test1 --statistic mean std
-
+#   ${MIXER_DEV_PY} figures_one --json ${OUT_FOLDER}/*_rep@.test1.json --out ${OUT_FOLDER}/UNIVAR_results_test1 --statistic mean std

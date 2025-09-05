@@ -19,8 +19,7 @@ export SINGULARITY_BIND=
 export MIXER_SIF=/ess/p697/data/durable/s3-api/github/precimed/gsa-mixer/containers/latest/gsa-mixer.sif
 md5sum ${MIXER_SIF}
 
-export MIXER_PY="singularity exec --home $PWD:/home --bind /ess/p697:/ess/p697 ${MIXER_SIF} python         /tools/mixer/precimed/mixer.py"
-export MIXER_FIGURES_PY="singularity exec --home $PWD:/home --bind /ess/p697:/ess/p697 ${MIXER_SIF} python /tools/mixer/precimed/mixer_figures.py"
+export MIXER_DEV_PY="singularity exec --home $PWD:/home --bind /ess/p697:/ess/p697 ${MIXER_SIF} python /tools/mixer/precimed/mixer_dev.py"
 
 export ANALYSIS_ROOT=<your_working_folder>
 export OUT_FOLDER=${ANALYSIS_ROOT}/out
@@ -51,7 +50,7 @@ export EXTRA_FLAGS_B="--exclude-ranges MHC --z1max 9.336 --z2max 9.336"
 # PLSA analysis (new MiXeR model)
 if true; then
   echo -e '\n==== PLSA FIT2 ==========================================================================\n'
-  ${MIXER_PY} fit2 ${COMMON_FLAGS} \
+  ${MIXER_DEV_PY} fit2 ${COMMON_FLAGS} \
           --trait1-file ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.sumstats.gz \
           --trait2-file ${SUMSTATS_FOLDER}/${SUMSTATS2_FILE}.sumstats.gz \
           --trait1-params-file ${OUT_FOLDER}/${SUMSTATS_FILE}_rep${REP}.fit1.json \
@@ -63,7 +62,7 @@ if true; then
           --seed $((REP+1000)) --threads ${THREADS} ${EXTRA_FLAGS_B}
 
   echo -e '\n==== PLSA TEST2 ==========================================================================\n'
-  ${MIXER_PY} test2 ${COMMON_FLAGS} \
+  ${MIXER_DEV_PY} test2 ${COMMON_FLAGS} \
           --trait1-file ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.sumstats.gz \
           --trait2-file ${SUMSTATS_FOLDER}/${SUMSTATS2_FILE}.sumstats.gz \
           --load-params-file ${OUT_FOLDER}/${SUMSTATS_FILE}_vs_${SUMSTATS2_FILE}_rep${REP}.fit2.json \
@@ -73,10 +72,10 @@ if true; then
           --seed $((REP+1000)) --threads ${THREADS} ${EXTRA_FLAGS_B} 
 fi
 
-# non-PLSA analysis (old MiXeR version)
+# non-PLSA analysis using old MiXeR model
 if false; then
   echo -e '\n==== FIT2 ===============================================================================\n'
-  ${MIXER_PY} fit2 ${COMMON_FLAGS} \
+  ${MIXER_DEV_PY} fit2 ${COMMON_FLAGS} \
           --trait1-file ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.sumstats.gz \
           --trait2-file ${SUMSTATS_FOLDER}/${SUMSTATS2_FILE}.sumstats.gz \
           --trait1-params-file ${OUT_FOLDER}/${SUMSTATS_FILE}_rep${REP}.fit1.json \
@@ -86,7 +85,7 @@ if false; then
           --seed $((REP+1000)) --threads ${THREADS} ${EXTRA_FLAGS_B}
 
   echo -e '\n==== TEST2 ==============================================================================\n'
-  ${MIXER_PY} test2 ${COMMON_FLAGS} \
+  ${MIXER_DEV_PY} test2 ${COMMON_FLAGS} \
           --trait1-file ${SUMSTATS_FOLDER}/${SUMSTATS_FILE}.sumstats.gz \
           --trait2-file ${SUMSTATS_FOLDER}/${SUMSTATS2_FILE}.sumstats.gz \
           --load-params-file ${OUT_FOLDER}/${SUMSTATS_FILE}_vs_${SUMSTATS2_FILE}_rep${REP}.fit2.json \
@@ -96,10 +95,10 @@ fi
 
 #if [[ "${SLURM_ARRAY_TASK_ID}" -eq 1 ]]; then
 #  echo -e '\n==== COMBINE / FIGURES ==================================================================\n'
-#  ${MIXER_FIGURES_PY} combine --json ${OUT_FOLDER}/${SUMSTATS_FILE}_vs_${SUMSTATS2_FILE}_rep@.fit2.json --out ${OUT_FOLDER}/${SUMSTATS_FILE}_vs_${SUMSTATS2_FILE}_rep@.fit2
-#  ${MIXER_FIGURES_PY} combine --json ${OUT_FOLDER}/${SUMSTATS_FILE}_vs_${SUMSTATS2_FILE}_rep@.test2.json --out ${OUT_FOLDER}/${SUMSTATS_FILE}_vs_${SUMSTATS2_FILE}_rep@.test2
-#  ${MIXER_FIGURES_PY} two --json-fit ${OUT_FOLDER}/${SUMSTATS_FILE}_vs_${SUMSTATS2_FILE}_rep@.fit2.json --json-test  ${OUT_FOLDER}/${SUMSTATS_FILE}_vs_${SUMSTATS2_FILE}_rep@.test2.json --trait1 ${SUMSTATS_FILE} --trait2 ${SUMSTATS2_FILE} --out ${OUT_FOLDER}/${SUMSTATS_FILE}_vs_${SUMSTATS2_FILE} --statistic mean std
+#  ${MIXER_DEV_PY} combine --json ${OUT_FOLDER}/${SUMSTATS_FILE}_vs_${SUMSTATS2_FILE}_rep@.fit2.json --out ${OUT_FOLDER}/${SUMSTATS_FILE}_vs_${SUMSTATS2_FILE}_rep@.fit2
+#  ${MIXER_DEV_PY} combine --json ${OUT_FOLDER}/${SUMSTATS_FILE}_vs_${SUMSTATS2_FILE}_rep@.test2.json --out ${OUT_FOLDER}/${SUMSTATS_FILE}_vs_${SUMSTATS2_FILE}_rep@.test2
+#  ${MIXER_DEV_PY} figures_two --json-fit ${OUT_FOLDER}/${SUMSTATS_FILE}_vs_${SUMSTATS2_FILE}_rep@.fit2.json --json-test  ${OUT_FOLDER}/${SUMSTATS_FILE}_vs_${SUMSTATS2_FILE}_rep@.test2.json --trait1 ${SUMSTATS_FILE} --trait2 ${SUMSTATS2_FILE} --out ${OUT_FOLDER}/${SUMSTATS_FILE}_vs_${SUMSTATS2_FILE} --statistic mean std
 #fi
 
 # Run the following to make a .csv table with results across multiple traits
-# ${MIXER_FIGURES_PY} two --json ${OUT_FOLDER}/*_rep@.fit2.json --out ${OUT_FOLDER}/BIVAR_results_fit2 --statistic mean std
+# ${MIXER_DEV_PY} figures_two --json ${OUT_FOLDER}/*_rep@.fit2.json --out ${OUT_FOLDER}/BIVAR_results_fit2 --statistic mean std
