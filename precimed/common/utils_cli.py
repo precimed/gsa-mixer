@@ -137,7 +137,7 @@ def fix_and_validate_args(args):
     check_input_file(args, 'load-params-file')
 
     if ('analysis' in args) and (args.analysis == 'fit2'):
-        if not args.load_params_file:
+        if ('load_params_file' not in args) or (not args.load_params_file):
             if not args.trait1_params_file: raise ValueError('--trait1-params-file or --load-params-file is required ')
             if not args.trait2_params_file: raise ValueError('--trait2-params-file or --load-params-file is required ')
 

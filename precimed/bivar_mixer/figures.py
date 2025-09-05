@@ -9,9 +9,11 @@ import json
 import os
 import itertools
 import glob
+import traceback
 
 import pandas as pd
 import numpy as np
+import collections
 from numpy import ma
 
 import matplotlib.pyplot as plt
@@ -27,16 +29,19 @@ from scipy.interpolate import interp1d
 from scipy.stats import multivariate_normal
 
 from .utils import BivariateParametrization_constUNIVARIATE_constRG_constRHOZERO
-from .utils import _calculate_bivariate_uncertainty_funcs
 from .utils import BivariateParams
-from .utils import NumpyEncoder
+from common.utils import NumpyEncoder
 
+import bivar_mixer.utils
+import mixer_dev.utils
 import common.utils_cli
 
 def make_qq_plot(qq, ci=True, ylim=7.3, xlim=7.3):
     hv_logp = np.array(qq['hv_logp']).astype(float)
     data_logpvec = np.array(qq['data_logpvec']).astype(float)
     model_logpvec = np.array(qq['model_logpvec']).astype(float)
+    if not np.any(np.isfinite(data_logpvec)):
+        return
     ylim_data = max(hv_logp[np.isfinite(data_logpvec)])
     model_logpvec[hv_logp > ylim_data]=np.nan
     if ci:
@@ -162,8 +167,8 @@ def plot_z_vs_z_data(df, flip=False, traits=['Trait1', 'Trait2'], plot_limits=15
     '''
         # input can be generated as follows:
         import pandas as pd
-        df1 = pd.read_csv(fname1, delim_whitespace=True, usecols=['SNP', 'A1', 'A2', 'Z'])
-        df2 = pd.read_csv(fname2, delim_whitespace=True, usecols=['SNP', 'A1', 'A2', 'Z'])
+        df1 = pd.read_csv(fname1, sep=r'\s+', usecols=['SNP', 'A1', 'A2', 'Z'])
+        df2 = pd.read_csv(fname2, sep=r'\s+', usecols=['SNP', 'A1', 'A2', 'Z'])
         df = precimed.mixer.figures.merge_z_vs_z(df1, df2)
     '''
     plot_extent = [-plot_limits, plot_limits, -plot_limits, plot_limits]
@@ -227,13 +232,13 @@ def extract_brute1_results(data):
     brute1_results = []
     if 'optimize' in data:
         for x in data['optimize']:
-            if x[0]=='brute1':
+            if (x[0] in ['brute1', 'brute1-fast']):
                 brute1_results=x[1]
                 break
     return brute1_results
 
 def extract_likelihood_function(data):
-    funcs, stats = _calculate_bivariate_uncertainty_funcs(alpha=0.05, totalhet=data['options']['totalhet'], num_snps=data['options']['num_snp'])
+    funcs, stats = bivar_mixer.utils._calculate_bivariate_uncertainty_funcs(alpha=0.05, totalhet=data['options']['totalhet'], num_snps=data['options']['num_snp'])
     p=data['params']; params=BivariateParams(pi=p['pi'],sig2_beta=p['sig2_beta'], rho_beta=p['rho_beta'],sig2_zero=p['sig2_zero'],rho_zero=p['rho_zero'])
     parametrization = BivariateParametrization_constUNIVARIATE_constRG_constRHOZERO(lib=None, const_params1=params._params1(), const_params2=params._params2(), const_rg=params._rg(), const_rho_zero=params._rho_zero)
     brute1_results = extract_brute1_results(data)
@@ -241,6 +246,19 @@ def extract_likelihood_function(data):
         return [], []
 
     return [dict(funcs)['nc12@p9'](parametrization.vec_to_params([x])) for x in brute1_results['grid']], brute1_results['Jout']
+
+def extract_likelihood_function_dev(data):
+    funcs, stats = mixer_dev.utils._calculate_bivariate_uncertainty_funcs(alpha=0.05, NCKoef=data['options']['nckoef'])
+    brute1_results = extract_brute1_results(data)
+    if not brute1_results:
+        return [], []
+
+    libbgmg_mock = collections.namedtuple('LibbgmgMock', ['num_snp'])._make([data['options']['num_snp']])
+    bivarite_params_vec = [mixer_dev.utils._dict_to_params(p, libbgmg=None) for p in brute1_results['grid_params']]
+    for params in bivarite_params_vec:
+        params._params1._libbgmg = libbgmg_mock
+        params._params2._libbgmg = libbgmg_mock
+    return [dict(funcs)['nc12@p9'](params) for params in bivarite_params_vec], brute1_results['Jout']
 
 def plot_likelihood(data):
     if 'likelihood' in data:
@@ -261,7 +279,10 @@ def plot_likelihood(data):
         for like_x, like_y in data['likelihood']:
             plt.plot(np.array(like_x)/1000, like_y - np.min(like_y), linestyle='dotted', color=cm.colors[0], alpha=0.3)
     else:        
-        like_x, like_y = extract_likelihood_function(data)
+        if ('nckoef' not in data['options']):
+            like_x, like_y = extract_likelihood_function(data)
+        else:
+            like_x, like_y = extract_likelihood_function_dev(data)
         if (not like_x) or (not like_y):
             print('--json argument does not contain brute1 optimization results, skip likelihood plot generation')
             return
@@ -283,7 +304,10 @@ def make_power_plot(data_vec, colors=None, traits=None, power_thresh=None):
     for data, color, trait in zip(data_vec, colors, traits):
         ax=plt.plot(np.log10(data['power']['nvec']), data['power']['svec'], color=cm.colors[color % 10], linestyle='solid' )
         current_n.append(data['options']['trait1_nval'])
-        cs = interp1d(np.log10(data['power']['nvec']),data['power']['svec'])(np.log10(data['options']['trait1_nval']))
+        try:
+            cs = interp1d(np.log10(data['power']['nvec']),data['power']['svec'])(np.log10(data['options']['trait1_nval']))
+        except:
+            cs = np.nan
         current_s.append(cs)
 
         if power_thresh is not None:
@@ -295,7 +319,6 @@ def make_power_plot(data_vec, colors=None, traits=None, power_thresh=None):
         display_n = lambda x: '{}'.format(int(float('{:0.1e}'.format(x))))
         display_auto = lambda x: '{}K'.format(display_n(x/1000)) if (x < 1e6) else '{:0.1f}M'.format(x/1e6)
 
-        print('HAS POWER?', 'power_ci' in data)
         if 'power_ci' in data:
             if power_thresh is not None:
                 future_n_ci = [np.power(10, float(interp1d(data_power['svec'], np.log10(data_power['nvec']))(power_thresh))) for data_power in data['power_ci'] if data_power]
@@ -329,7 +352,7 @@ def make_power_plot(data_vec, colors=None, traits=None, power_thresh=None):
     plt.locator_params(axis='x', nbins=5)
     plt.gca().set_xticklabels(labels=['10K', '100K', '1M', '10M', '100M'])
     plt.yticks(np.arange(0, 1.01, step=0.2))
-    plt.axes().set_yticklabels(labels=['0', '20', '40', '60', '80', '100'])
+    plt.gca().set_yticklabels(labels=['0', '20', '40', '60', '80', '100'])
 
 def parser_one_add_arguments(func, parser):
     parser.add_argument('--json', type=str, default=[""], nargs='+', help="json file from a univariate analysis. This argument does support wildcards (*) or a list with multiple space-separated arguments to process more than one .json file. This allows to generate a combined .csv table across many traits.")
@@ -356,24 +379,6 @@ def parser_combine_add_arguments(func, parser):
     parser.add_argument('--rep2use', type=str, default='1-20', help="Repeat indices to use, e.g. 1,2,3 or 1-4,12,16-20")
     parser.set_defaults(func=func)
 
-def generate_args_parser(__version__=None):
-    parser = argparse.ArgumentParser(description=f"MiXeR v{__version__}: visualization tools")
-    parser.add_argument('--version', action='version', version=f'MiXeR v{__version__}')
-    
-    parent_parser = argparse.ArgumentParser(add_help=False)
-    parent_parser.add_argument('--argsfile', type=open, action=common.utils_cli.LoadFromFile, default=None, help="file with additional command-line arguments")
-    parent_parser.add_argument("--out", type=str, default="mixer", help="prefix for the output files")
-    parent_parser.add_argument('--ext', type=str, default=['png'], nargs='+', choices=['png', 'svg'], help="output extentions")
-    parent_parser.add_argument('--zmax', type=float, default=10, help="limit for z-vs-z density plots")
-    parent_parser.add_argument('--statistic', type=str, nargs='+', default=["point_estimate"], choices=["point_estimate", "mean", "median", "std", "min", "max"], help="Which statistic to show in the tables and on the Venn diagrams. Can have multiple values. In the case of venn diagram, the first value (typically 'point_estimate' or 'mean') indicate the size of the venn diagram; the second value (optional, typically 'std') allow to include error bars on the Venn diagramm.")
-
-    subparsers = parser.add_subparsers()
-    parser_one_add_arguments(func=execute_one_parser, parser=subparsers.add_parser("one", parents=[parent_parser], help='produce figures for univariate analysis'))
-    parser_two_add_arguments(func=execute_two_parser, parser=subparsers.add_parser("two", parents=[parent_parser], help='produce figures for cross-trait analysis'))
-    parser_combine_add_arguments(func=execute_combine_parser, parser=subparsers.add_parser("combine", parents=[parent_parser], help='combine .json files MiXeR runs (e.g. with different --extract setting)'))
-
-    return parser
-
 def execute_two_parser(args):
     df_data = {}
 
@@ -385,6 +390,8 @@ def execute_two_parser(args):
 
     for fname in files:
         keys = 'dice pi1 pi2 pi12 nc1@p9 nc2@p9 nc12@p9 rho_zero rho_beta rg fraction_concordant_within_shared'.split()
+        if args.dev:
+            keys = 'dice pi1 pi2 pi12 nc1@p9 nc2@p9 nc12@p9 rho_zero rho_beta rg_sig2_factor rg fraction_concordant_within_shared'.split()
         try:
             data = json.loads(open(fname).read())
             if 'dice' not in data['ci']:
@@ -398,8 +405,8 @@ def execute_two_parser(args):
             for k in keys:   # test that all keys are available
                 for stat in args.statistic:
                     val = data['ci'][k][stat]
-        except:
-            print('error reading from {}, skip'.format(fname))
+        except Exception:
+            print(f'skip {fname} due to the following error:\n{traceback.format_exc()}')
             continue
 
         insert_key_to_dictionary_as_list(df_data, 'fname', fname)
@@ -449,9 +456,12 @@ def execute_two_parser(args):
             plt.subplot(2,4,2); make_strat_qq_plots(data_test, flip=args.flip, traits=[args.trait1, args.trait2], do_legend=True)
             plt.subplot(2,4,3); make_strat_qq_plots(data_test, flip=(not args.flip), traits=[args.trait2, args.trait1], do_legend=True)
         plt.subplot(2,4,4); plot_likelihood(data_fit)
-        plt.subplot(2,4,6); plot_causal_density(data_test, flip=args.flip, traits=[args.trait1, args.trait2], statistic=args.statistic)
-        df1 = pd.read_table(args.trait1_file, delim_whitespace=True, usecols=['SNP', 'A1', 'A2', 'Z'])
-        df2 = pd.read_table(args.trait2_file, delim_whitespace=True, usecols=['SNP', 'A1', 'A2', 'Z'])
+        try:
+            plt.subplot(2,4,6); plot_causal_density(data_test, flip=args.flip, traits=[args.trait1, args.trait2], statistic=args.statistic)
+        except:
+            pass
+        df1 = pd.read_table(args.trait1_file, sep=r'\s+', usecols=['SNP', 'A1', 'A2', 'Z'])
+        df2 = pd.read_table(args.trait2_file, sep=r'\s+', usecols=['SNP', 'A1', 'A2', 'Z'])
         df = merge_z_vs_z(df1, df2)
         plt.subplot(2,4,7); plot_z_vs_z_data(df, flip=args.flip, plot_limits=args.zmax, traits=[args.trait1, args.trait2])
         plt.subplot(2,4,8); plot_predicted_zscore(data_test, len(df), flip=args.flip, plot_limits=args.zmax, traits=[args.trait1, args.trait2])
@@ -484,15 +494,6 @@ def parse_val2use(val2use_arg):
             val2use.append(a.strip())
     if np.any([not x.isdigit() for x in val2use]): raise ValueError('Value labels must be integer: {}'.format(val2use_arg))
     return val2use
-
-'''
-python ~/github/mixer/precimed/mixer_figures.py combine --json PGC_SCZ_2014_EUR.fit.rep@.json  --out combined/PGC_SCZ_2014_EUR.fit
-python ~/github/mixer/precimed/mixer_figures.py one --json combined/PGC_SCZ_2014_EUR.fit.json  --out combined/PGC_SCZ_2014_EUR.fit
-
-python ~/github/mixer/precimed/mixer_figures.py combine --json PGC_SCZ_2014_EUR_vs_PGC_BIP_2016.fit.rep@.json  --out combined/PGC_SCZ_2014_EUR_vs_PGC_BIP_2016.fit
-python ~/github/mixer/precimed/mixer_figures.py combine --json PGC_SCZ_2014_EUR_vs_PGC_BIP_2016.test.rep@.json  --out combined/PGC_SCZ_2014_EUR_vs_PGC_BIP_2016.test
-python ~/github/mixer/precimed/mixer_figures.py two --json-fit combined/PGC_SCZ_2014_EUR_vs_PGC_BIP_2016.fit.json --json-test combined/PGC_SCZ_2014_EUR_vs_PGC_BIP_2016.test.json --out combined/PGC_SCZ_2014_EUR_vs_PGC_BIP_2016 --statistic mean std
-'''
 
 def execute_combine_parser(args):
     args.rep2use = parse_val2use(args.rep2use)
@@ -530,6 +531,10 @@ def execute_combine_parser(args):
 
     univariate_keys = ['pi', 'nc', 'nc@p9', 'sig2_beta', 'sig2_zero', 'h2']
     bivariate_keys = ['sig2_zero_T1', 'sig2_zero_T2', 'sig2_beta_T1', 'sig2_beta_T2', 'h2_T1', 'h2_T2', 'rho_zero', 'rho_beta', 'rg', 'pi1', 'pi2', 'pi12', 'pi1u', 'pi2u', 'dice', 'nc1', 'nc2', 'nc12', 'nc1u', 'nc2u', 'nc1@p9', 'nc2@p9', 'nc12@p9', 'nc1u@p9', 'nc2u@p9', 'totalpi', 'totalnc', 'totalnc@p9', 'pi1_over_totalpi', 'pi2_over_totalpi', 'pi12_over_totalpi', 'pi1_over_pi1u', 'pi2_over_pi2u', 'pi12_over_pi1u', 'pi12_over_pi2u', 'pi1u_over_pi2u', 'pi2u_over_pi1u']
+    if args.dev:
+        univariate_keys = ['pi', 'nc', 'nc@p9', 'sig2_beta', 'sig2_zeroA', 's', 'l', 'h2']
+        bivariate_keys = ['sig2_zeroA_T1', 'sig2_zeroA_T2', 'sig2_beta_T1', 'sig2_beta_T2', 'h2_T1', 'h2_T2', 'rho_zero', 'rho_beta', 'rg_sig2_factor', 'rg', 'pi1', 'pi2', 'pi12', 'pi1u', 'pi2u', 'dice', 'nc1', 'nc2', 'nc12', 'nc1u', 'nc2u', 'nc1@p9', 'nc2@p9', 'nc12@p9', 'totalpi', 'totalnc', 'totalnc@p9', 'pi1_over_totalpi', 'pi2_over_totalpi', 'pi12_over_totalpi', 'pi1_over_pi1u', 'pi2_over_pi2u', 'pi12_over_pi1u', 'pi12_over_pi2u', 'pi1u_over_pi2u', 'pi2u_over_pi1u']        
+
     for key in (univariate_keys + bivariate_keys):
         values = [data['ci'][key]['point_estimate'] for data in data_vec if (key in data['ci'])]
         if values: results['ci'][key] = {'mean': np.mean(values), 'median':np.median(values), 'std': np.std(values), 'min': np.min(values), 'max': np.max(values)}
@@ -545,10 +550,12 @@ def execute_combine_parser(args):
             results['likelihood'].append((like_x, like_y))
 
     combine_qqplots = lambda qqplots: {
-        'hv_logp':np.mean(np.array([np.array(qq['hv_logp']).astype(float) for qq in qqplots]), 0),
-        'data_logpvec':np.mean(np.array([np.array(qq['data_logpvec']).astype(float) for qq in qqplots]), 0),
-        'model_logpvec':np.mean(np.array([np.array(qq['model_logpvec']).astype(float) for qq in qqplots]), 0),
-        'sum_data_weights':np.mean(np.array([np.array(qq['sum_data_weights']).astype(float) for qq in qqplots]), 0)
+        'hv_logp':np.nanmean(np.array([np.array(qq['hv_logp']).astype(float) for qq in qqplots]), 0),
+        'data_logpvec':np.nanmean(np.array([np.array(qq['data_logpvec']).astype(float) for qq in qqplots]), 0),
+        'model_logpvec':np.nanmean(np.array([np.array(qq['model_logpvec']).astype(float) for qq in qqplots]), 0),
+        'sum_data_weights':np.nanmean(np.array([np.array(qq['sum_data_weights']).astype(float) for qq in qqplots]), 0),
+        'n_snps':np.nanmean(np.array([np.array(qq['n_snps']).astype(float) for qq in qqplots]), 0),
+        'title':qqplots[0]['title']
     }
 
     qqplots = [data['qqplot'] for data in data_vec if ('qqplot' in data)]
@@ -560,6 +567,13 @@ def execute_combine_parser(args):
             results['qqplot'] = []
             for index in range(num_plots):
                 results['qqplot'].append(combine_qqplots([qq[index] for qq in qqplots]))
+
+    qqplot_bins = [data['qqplot_bins'] for data in data_vec if ('qqplot_bins' in data)]
+    if qqplot_bins:
+        num_plots = len(qqplot_bins[0])
+        results['qqplot_bins'] = []
+        for index in range(num_plots):
+            results['qqplot_bins'].append(combine_qqplots([qq[index] for qq in qqplot_bins]))
 
     if results['analysis'] == 'bivariate':
         best_vs_min_AIC = [];         best_vs_min_BIC = []
@@ -620,13 +634,15 @@ def execute_one_parser(args):
     print('generate {}.csv from {} json files...'.format(args.out, len(files)))
     for fname in files:
         keys = 'pi sig2_beta sig2_zero h2 nc@p9'.split()
+        if args.dev:
+            keys = 'pi sig2_beta sig2_zeroA s l h2 nc@p9'.split()
         try:
             data = json.loads(open(fname).read())
             for k in keys:   # test that all keys are available
                 for stat in args.statistic:
                     val = data['ci'][k][stat]
-        except:
-            print('error reading from {}, skip'.format(fname))
+        except Exception:
+            print(f'skip {fname} due to the following error:\n{traceback.format_exc()}')
             continue
 
         insert_key_to_dictionary_as_list(df_data, 'fname', fname)
