@@ -727,3 +727,74 @@ def calc_power_curve(libbgmg, params, trait_index, downsample_factor, nvec=None)
             libbgmg.weights = weights
 
     return {'nvec': power_nvec, 'svec': power_svec}
+
+def calc_bivariate_pdf(libbgmg, params, downsample_factor):
+    weights = libbgmg.weights 
+    defvec = weights > 0
+    defvec = defvec & np.isfinite(libbgmg.zvec1) & np.isfinite(libbgmg.nvec1)
+    defvec = defvec & np.isfinite(libbgmg.zvec2) & np.isfinite(libbgmg.nvec2)
+    model_weights = downsample_weights(weights, downsample_factor, defvec, normalize=True)
+
+    zgrid = np.arange(-25, 25.00001, 0.05)
+    if np.sum(model_weights) == 0:
+        raise(ValueError('np.sum(model_weights) == 0; consider reducing --downsample-factor ?'))
+
+    try:
+        libbgmg.weights = model_weights
+        pdf = params.pdf(libbgmg, zgrid)
+    finally:
+        libbgmg.weights = weights
+
+    return zgrid, pdf
+
+def calc_bivariate_qq(libbgmg, zgrid, pdf):
+    zgrid_fine = np.arange(-25, 25.00001, 0.005)   # project to a finer grid
+    pdf_fine=scipy.interpolate.RectBivariateSpline(zgrid, zgrid, pdf)(zgrid_fine, zgrid_fine,grid=True)
+    pthresh_vec = [1, 0.1, 0.01, 0.001]
+    zthresh_vec = -scipy.stats.norm.ppf(np.array(pthresh_vec)/2)
+
+    defvec = libbgmg.weights > 0
+    defvec = defvec & np.isfinite(libbgmg.zvec1) & np.isfinite(libbgmg.nvec1)
+    defvec = defvec & np.isfinite(libbgmg.zvec2) & np.isfinite(libbgmg.nvec2)
+
+    zvec1=libbgmg.zvec1[defvec]
+    zvec2=libbgmg.zvec2[defvec]
+    weights = libbgmg.weights[defvec]
+
+    # Regular grid (vertical axis of the QQ plots)
+    hv_z = np.linspace(0, np.min([np.max(np.abs(np.concatenate((zvec1, zvec2)))), 38.0]), 1000)
+    hv_logp = -np.log10(2*scipy.stats.norm.cdf(-hv_z))
+
+    result = []
+    for zthresh, pthresh in zip(zthresh_vec, pthresh_vec):
+        mask = abs(zvec2)>=zthresh
+        data_logpvec = calc_qq_data(zvec1[mask], weights[mask], hv_logp)
+
+        pd_cond = np.sum(pdf_fine[abs(zgrid_fine) >= zthresh, :], axis=0)
+        pd_cond = pd_cond / np.sum(pd_cond) / (zgrid_fine[1]-zgrid_fine[0])
+        model_logpvec = calc_qq_model(zgrid_fine, pd_cond, hv_z)
+
+        title = 'T1|T2|{}'.format(pthresh)
+        result.append({'hv_logp': hv_logp,
+                       'data_logpvec': data_logpvec,
+                       'model_logpvec': model_logpvec,
+                       'n_snps': int(np.sum(mask)),
+                       'sum_data_weights': float(np.sum(weights[mask])),
+                       'title' : title})
+
+    for zthresh in zthresh_vec:
+        mask = abs(zvec1)>=zthresh
+        data_logpvec = calc_qq_data(zvec2[mask], weights[mask], hv_logp)
+
+        pd_cond = np.sum(pdf_fine[:, abs(zgrid_fine) >= zthresh], axis=1)
+        pd_cond = pd_cond / np.sum(pd_cond) / (zgrid_fine[1]-zgrid_fine[0])
+        model_logpvec = calc_qq_model(zgrid_fine, pd_cond, hv_z)
+
+        title = 'T2|T1|{}'.format(pthresh)
+        result.append({'hv_logp': hv_logp,
+                       'data_logpvec': data_logpvec,
+                       'model_logpvec': model_logpvec,
+                       'n_snps': int(np.sum(mask)),
+                       'sum_data_weights': float(np.sum(weights[mask])),
+                       'title' : title})
+    return result
