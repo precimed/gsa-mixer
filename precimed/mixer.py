@@ -42,10 +42,11 @@ if __name__ == "__main__":
     header += f"Call: mixer.py {sys.argv[1]} "
     for a in sys.argv[2:]:
         header += f'\\\n\t{a} ' if a.startswith('--') else f'{a} '
-    logging.info(header)
 
     if sys.argv[1] not in ['split_sumstats']:
         # no need to rely on libbgmg just for logging
         common.utils_cli.initialize_libbgmg_logging(args, header)
+    else:
+        logging.info(header)
 
     args.func(args)

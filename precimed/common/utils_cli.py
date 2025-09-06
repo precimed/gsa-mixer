@@ -3,6 +3,7 @@ import numpy as np
 import collections
 import argparse
 import common.libbgmg
+import logging
 
 GO_EXTEND_BP_DEFAULT = 10000
 
@@ -159,11 +160,12 @@ class LoadFromFile (argparse.Action):
                 setattr(namespace, k, v)
 
 def initialize_libbgmg_logging(args, header):
+    logging.info('log_message({})'.format(header))  # make sure that message is logged to stdout
     libbgmg = common.libbgmg.LibBgmg(args.lib)
     log_fname = args.log if args.log else args.out + '.log'
     if os.path.exists(log_fname): os.system(f'rm {log_fname}')
     libbgmg.init_log(log_fname)
-    libbgmg.log_message(header)
+    libbgmg.log_message(header, use_python_logging=False)
     libbgmg.dispose()
     return libbgmg
 

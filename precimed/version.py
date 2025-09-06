@@ -5,14 +5,14 @@ _MINOR = "2"
 _PATCH = "0"
 # This is mainly for nightly builds which have the suffix ".dev$DATE". See
 # https://semver.org/#is-v123-a-semantic-version for the semantics.
-_SUFFIX = ""
-#_SUFFIX = "dev-2025-09-05"
+#_SUFFIX = ""
+_SUFFIX = "dev-2025-09-06"
 
 VERSION_SHORT = "{0}.{1}".format(_MAJOR, _MINOR)
 VERSION = "{0}.{1}.{2}{3}".format(_MAJOR, _MINOR, _PATCH, _SUFFIX)
 
 MASTHEAD = "***********************************************************************\n"
-MASTHEAD += "* (c) 2016-2025 MiXeR software\n"
+MASTHEAD += f"* (c) 2016-2025 MiXeR v{VERSION} software\n"
 MASTHEAD += "* Norwegian Centre for Mental Disorders Research / University of Oslo\n"
 MASTHEAD += "* Center for Multimodal Imaging and Genetics / UCSD\n"
 MASTHEAD += "* GNU General Public License v3\n"

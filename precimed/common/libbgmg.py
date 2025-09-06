@@ -128,9 +128,11 @@ class LibBgmg(object):
         logging.info('init_log({})'.format(file)) 
         self.cdll.bgmg_init_log(_p2n(file))
 
-    def log_message(self, message):
-        logging.info('log_message({})'.format(message)) 
-        self.cdll.bgmg_log_message(_p2n(message))
+    def log_message(self, message, use_bgmg_log_message=True, use_python_logging=True):
+        if use_python_logging:
+            logging.info('log_message({})'.format(message)) 
+        if use_bgmg_log_message:
+            self.cdll.bgmg_log_message(_p2n(message))
 
     def dispose(self):
         return self._check_error(self.cdll.bgmg_dispose(self._context_id))
