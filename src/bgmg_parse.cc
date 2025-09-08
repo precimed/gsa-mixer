@@ -1,5 +1,6 @@
 #include "bgmg_parse.h"
 
+#include <algorithm>
 #include <sstream>
 #include <fstream>
 
@@ -27,6 +28,7 @@ static std::string atcg_complement(std::string val) {
     if (val[i] == 'c') retval += 'g';
     if (val[i] == 'g') retval += 'c';
   }
+  std::reverse(retval.begin(), retval.end());
   return retval;
 };
 
