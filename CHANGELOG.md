@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Fix minor alignment issue in strand flips between reference (``--bim-file``) and GWAS summary statistics (``--traitN-file``)
 * Remove duplicated logging of the header message to console output
 
 ## [2.2.0] - https://github.com/precimed/gsa-mixer
