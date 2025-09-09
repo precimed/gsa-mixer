@@ -259,7 +259,7 @@ PlinkLdFile::PlinkLdFile(const BimFile& bim, std::string filename) {
 
 void PlinkLdFile::save_as_binary(std::string filename) {
   std::ofstream os(filename, std::ofstream::binary);
-  if (!os) throw std::runtime_error("can't open" + filename);
+  if (!os) throw std::runtime_error(std::string("can't open ") + filename);
   if (sizeof(int) != 4) throw std::runtime_error("sizeof(int) != 4, internal error in BGMG cpp"); // int -> int32_t
 
   int64_t numel = r2_.size();
