@@ -5,8 +5,11 @@ sys.path.append(os.getcwd())
 import pandas as pd
 import numpy as np
 from scipy.sparse import coo_matrix
-from common import libbgmg
+from precimed.common import libbgmg
 
+def print_and_assert_below(threshold, message, value):
+    print(message, value)
+    assert(value < threshold)
 
 # py.test precimed/mixer-test/test_ld.py  -k test_ld
 def test_ld():
@@ -31,32 +34,32 @@ def test_ld():
     r4_het = np.multiply(r2_het, r2_het)
 
     # check that MAF is OK, except that libbgmg MAF is opposite (e.g. about A2, not about A1)
-    print('max MAF difference:', np.max(np.abs(1-lib.mafvec) - frq.MAF))
-    print('max HET difference:', np.max(np.abs(lib_hetvec - hetvec)))
+    print_and_assert_below(1e-7, 'max MAF difference:', np.max(np.abs(1-lib.mafvec) - frq.MAF))
+    print_and_assert_below(1e-7, 'max HET difference:', np.max(np.abs(lib_hetvec - hetvec)))
 
-    lib.set_option('retrieve_ld_sum_type', 0); ld_sum_r2_above = lib.ld_sum_r2
-    lib.set_option('retrieve_ld_sum_type', 1); ld_sum_r2_below = lib.ld_sum_r2
-    lib.set_option('retrieve_ld_sum_type', 2); ld_sum_r2_adjust_for_hvec_above = lib.ld_sum_r2
-    lib.set_option('retrieve_ld_sum_type', 3); ld_sum_r2_adjust_for_hvec_below = lib.ld_sum_r2
+    lib.set_option('retrieve_ld_sum_type', 0); ld_sum_r2_above = lib._get_vec_impl(lib.cdll.bgmg_retrieve_ld_sum_r2, np.float32, lib.num_snp, trait=None)
+    lib.set_option('retrieve_ld_sum_type', 1); ld_sum_r2_below = lib._get_vec_impl(lib.cdll.bgmg_retrieve_ld_sum_r2, np.float32, lib.num_snp, trait=None)
+    lib.set_option('retrieve_ld_sum_type', 2); ld_sum_r2_adjust_for_hvec_above = lib._get_vec_impl(lib.cdll.bgmg_retrieve_ld_sum_r2, np.float32, lib.num_snp, trait=None)
+    lib.set_option('retrieve_ld_sum_type', 3); ld_sum_r2_adjust_for_hvec_below = lib._get_vec_impl(lib.cdll.bgmg_retrieve_ld_sum_r2, np.float32, lib.num_snp, trait=None)
     lib.set_option('retrieve_ld_sum_type', 0); ld_sum_r4_above = lib.ld_sum_r4
     lib.set_option('retrieve_ld_sum_type', 2); ld_sum_r4_adjust_for_hvec_above = lib.ld_sum_r4
 
-    print('max diff in r2_sum_above: ', np.max(np.abs(np.sum(np.multiply(r2, r2 >= r2min), 1) - ld_sum_r2_above)))
-    print('max diff in r2_sum_below: ', np.max(np.abs(np.sum(np.multiply(r2, (r2 < r2min) & (r2 >= ldscore_r2min) ), 1) - ld_sum_r2_below)))
-    print('max diff in r2_sum_total: ', np.max(np.abs(np.sum(np.multiply(r2, (r2 >= ldscore_r2min) ), 1) - (ld_sum_r2_above + ld_sum_r2_below) )))
-    print('max diff in r4_sum_above: ', np.max(np.abs(np.sum(np.multiply(r4, r2 >= r2min), 1) - ld_sum_r4_above)))
+    print_and_assert_below(1e-3, 'max diff in r2_sum_above: ', np.max(np.abs(np.sum(np.multiply(r2, r2 >= r2min), 1) - ld_sum_r2_above)))
+    print_and_assert_below(1e-3, 'max diff in r2_sum_below: ', np.max(np.abs(np.sum(np.multiply(r2, (r2 < r2min) & (r2 >= ldscore_r2min) ), 1) - ld_sum_r2_below)))
+    print_and_assert_below(2e-3, 'max diff in r2_sum_total: ', np.max(np.abs(np.sum(np.multiply(r2, (r2 >= ldscore_r2min) ), 1) - (ld_sum_r2_above + ld_sum_r2_below) )))
+    print_and_assert_below(2e-3, 'max diff in r4_sum_above: ', np.max(np.abs(np.sum(np.multiply(r4, r2 >= r2min), 1) - ld_sum_r4_above)))
 
-    print('max diff in r2_sum_het_above: ', np.max(np.abs(np.sum(np.multiply(r2_het, r2 >= r2min), 1) - ld_sum_r2_adjust_for_hvec_above)))
-    print('max diff in r2_sum_het_below: ', np.max(np.abs(np.sum(np.multiply(r2_het, (r2 < r2min) & (r2 >= ldscore_r2min) ), 1) - ld_sum_r2_adjust_for_hvec_below)))
-    print('max diff in r2_sum_het_total: ', np.max(np.abs(np.sum(np.multiply(r2_het, (r2 >= ldscore_r2min) ), 1) - (ld_sum_r2_adjust_for_hvec_above + ld_sum_r2_adjust_for_hvec_below) )))
-    print('max diff in r4_sum_het_above: ', np.max(np.abs(np.sum(np.multiply(r4_het, r2 >= r2min), 1) - ld_sum_r4_adjust_for_hvec_above)))
+    print_and_assert_below(1e-3, 'max diff in r2_sum_het_above: ', np.max(np.abs(np.sum(np.multiply(r2_het, r2 >= r2min), 1) - ld_sum_r2_adjust_for_hvec_above)))
+    print_and_assert_below(1e-3, 'max diff in r2_sum_het_below: ', np.max(np.abs(np.sum(np.multiply(r2_het, (r2 < r2min) & (r2 >= ldscore_r2min) ), 1) - ld_sum_r2_adjust_for_hvec_below)))
+    print_and_assert_below(1e-3, 'max diff in r2_sum_het_total: ', np.max(np.abs(np.sum(np.multiply(r2_het, (r2 >= ldscore_r2min) ), 1) - (ld_sum_r2_adjust_for_hvec_above + ld_sum_r2_adjust_for_hvec_below) )))
+    print_and_assert_below(1e-3, 'max diff in r4_sum_het_above: ', np.max(np.abs(np.sum(np.multiply(r4_het, r2 >= r2min), 1) - ld_sum_r4_adjust_for_hvec_above)))
 
     [snp, tag, lib_r] = lib.get_ld_r_chr(21)
     lib_r_mat = coo_matrix((lib_r, (snp, tag)), shape=(lib.num_snp, lib.num_tag)).toarray()
     lib_r2 = np.multiply(lib_r_mat, lib_r_mat)
 
     r2_above = np.multiply(ld, ld); r2_above = np.multiply(r2_above, r2_above >= r2min);
-    print('max diff in r2 sparse matrix: ', np.max(np.abs(lib_r2 - r2_above)))
+    print_and_assert_below(1e-4, 'max diff in r2 sparse matrix: ', np.max(np.abs(lib_r2 - r2_above)))
 
     """
     max MAF difference: 2.8610229518832853e-08
