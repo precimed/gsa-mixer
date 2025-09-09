@@ -11,7 +11,7 @@
 
 #include "zstr.hpp"
 
-// Validate that all charactars are A, T, C, G - nothing else. Expect lower case allele codes.
+// Validate that all characters are A, T, C, G - nothing else. Expect lower case allele codes.
 static bool check_atcg(std::string val) {
   for (int i = 0; i < val.size(); i++) { if (val[i] != 'a' && val[i] != 't' && val[i] != 'c' && val[i] != 'g') return false; }
   return true;
@@ -75,7 +75,7 @@ void BimFile::find_snp_to_index_map() {
     }
 
     // the following is OK even if there are duplicates among ss1, ss2, ss3, ss4
-    // (this could happen when alleles are not actg, or because it's ambugous snp with AT or CG allele codes)
+    // (this could happen when alleles are not actg, or because it's ambiguous snp with AT or CG allele codes)
     chrposa1a2_to_index_.insert(std::pair<std::string, int>(ss1.str(), i));
     chrposa1a2_to_index_.insert(std::pair<std::string, int>(ss2.str(), i));
     chrposa1a2_to_index_.insert(std::pair<std::string, int>(ss3.str(), i));
@@ -259,16 +259,18 @@ PlinkLdFile::PlinkLdFile(const BimFile& bim, std::string filename) {
 
 void PlinkLdFile::save_as_binary(std::string filename) {
   std::ofstream os(filename, std::ofstream::binary);
-  if (!os) throw std::runtime_error(::std::runtime_error("can't open" + filename));
+  if (!os) throw std::runtime_error("can't open" + filename);
   if (sizeof(int) != 4) throw std::runtime_error("sizeof(int) != 4, internal error in BGMG cpp"); // int -> int32_t
 
   int64_t numel = r2_.size();
   os.write(reinterpret_cast<const char*>(&numel), sizeof(int64_t));
 
   LOG << " PlinkLdFile::save_as_binary(filename=" << filename << "), writing " << numel << " elements...";
-  os.write(reinterpret_cast<char*>(&snpA_index_[0]), numel * sizeof(int));
-  os.write(reinterpret_cast<char*>(&snpB_index_[0]), numel * sizeof(int));
-  os.write(reinterpret_cast<char*>(&r2_[0]), numel * sizeof(float));
+  if (numel > 0) {
+    os.write(reinterpret_cast<char*>(&snpA_index_[0]), numel * sizeof(int));
+    os.write(reinterpret_cast<char*>(&snpB_index_[0]), numel * sizeof(int));
+    os.write(reinterpret_cast<char*>(&r2_[0]), numel * sizeof(float));
+  }
   os.close();
 }
 
@@ -373,13 +375,13 @@ SumstatFile::FLIP_STATUS SumstatFile::flip_strand(
   std::string a1ref = boost::to_lower_copy(a1reference);
   std::string a2ref = boost::to_lower_copy(a2reference);
 
-  if (!check_atcg(a1 + a2 + a1ref + a2ref)) return FLIT_STATUS_NOT_ACTG;
+  if (!check_atcg(a1 + a2 + a1ref + a2ref)) return FLIP_STATUS_NOT_ACTG;
   if (atcg_complement(a1) == a2) return FLIP_STATUS_AMBIGUOUS;
 
   if (a1 == a1ref && a2 == a2ref) return FLIP_STATUS_ALIGNED;
   if (a1 == a2ref && a2 == a1ref) return FLIP_STATUS_FLIPPED;
-  if (atcg_complement(a1) == a1ref && atcg_complement(a2) == a2ref) return FLIP_STATUS_FLIPPED;
-  if (atcg_complement(a1) == a2ref && atcg_complement(a2) == a1ref) return FLIP_STATUS_ALIGNED;
+  if (atcg_complement(a1) == a1ref && atcg_complement(a2) == a2ref) return FLIP_STATUS_ALIGNED;
+  if (atcg_complement(a1) == a2ref && atcg_complement(a2) == a1ref) return FLIP_STATUS_FLIPPED;
 
   return FLIP_STATUS_MISMATCH;
 }
@@ -471,8 +473,6 @@ void SumstatFile::read(const BimFile& bim, std::string filename, bool allow_ambi
       a2 = tokens[a2_col];
       zscore = stof(tokens[z_col]);
       sample_size = stof(tokens[n_col]);
-      if (chr_col >= 0) chri = stoi(tokens[chr_col]);
-      if (bp_col >= 0) bp = stoi(tokens[bp_col]);
     }
     catch (...) {
       std::stringstream error_str;
@@ -481,7 +481,18 @@ void SumstatFile::read(const BimFile& bim, std::string filename, bool allow_ambi
     }
 
     int snp_index = bim.snp_index(snp);
-    int snp_index2 = (snp_index == -1 && chr_col >= 0 && bp_col >= 0) ? bim.chrposa1a2_index(chri, bp, a1, a2) : -1;
+    int snp_index2 = -1;
+    if (snp_index == -1) {
+      try {
+        if ((snp_index == -1) && (chr_col >= 0)) chri = stoi(tokens[chr_col]);
+        if ((snp_index == -1) && (bp_col >= 0)) bp = stoi(tokens[bp_col]);
+      } catch (...) {
+        std::stringstream error_str;
+        error_str << "Error parsing " << filename << ":" << line_no << " ('" << str << "')";
+        throw std::invalid_argument(error_str.str());
+      }
+      snp_index2 = (chr_col >= 0 && bp_col >= 0) ? bim.chrposa1a2_index(chri, bp, a1, a2) : -1;
+    }
 
     if (snp_index == -1 && snp_index2 != -1) {
       snps_match_chrbpa1a2++;
@@ -498,7 +509,7 @@ void SumstatFile::read(const BimFile& bim, std::string filename, bool allow_ambi
       snp_ambiguous++;
       if (!allow_ambiguous_snps) continue;
     }
-    if (flip_status == FLIT_STATUS_NOT_ACTG) {
+    if (flip_status == FLIP_STATUS_NOT_ACTG) {
       not_actg_alleles++;
       continue;
     }

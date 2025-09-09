@@ -147,7 +147,7 @@ public:
     FLIP_STATUS_FLIPPED,
     FLIP_STATUS_AMBIGUOUS,
     FLIP_STATUS_MISMATCH,
-    FLIT_STATUS_NOT_ACTG,
+    FLIP_STATUS_NOT_ACTG,
   };
 
   // Detect flip status
