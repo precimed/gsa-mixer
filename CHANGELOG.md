@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Move user instructions over to https://github.com/precimed/mixer
 * Move reference files over to https://github.com/comorment/mixer
 
 ### Fixed
