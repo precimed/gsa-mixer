@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* move over AI-MiXeR code from precimed/mixer to ``annotations`` folder
+
 ### Changed
 
 * Move reference files over to https://github.com/comorment/mixer
