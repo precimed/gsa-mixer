@@ -1,9 +1,0 @@
-syngo_genes.xlsx filter=lfs diff=lfs merge=lfs -text
-syngo_ontologies.xlsx filter=lfs diff=lfs merge=lfs -text
-syngo_annotations.xlsx filter=lfs diff=lfs merge=lfs -text
-syngo_genesets_BP_all-data.json filter=lfs diff=lfs merge=lfs -text
-syngo_genesets_CC_all-data.json filter=lfs diff=lfs merge=lfs -text
-SynGO_bulk_download_release_20210225.zip filter=lfs diff=lfs merge=lfs -text
-syngo_annotations.xls filter=lfs diff=lfs merge=lfs -text
-syngo_genes.xls filter=lfs diff=lfs merge=lfs -text
-syngo_ontologies.xls filter=lfs diff=lfs merge=lfs -text

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+* Move reference files over to https://github.com/comorment/mixer
+
 ### Fixed
 
 * Remove duplicated logging of the header message to console output
