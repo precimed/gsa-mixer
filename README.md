@@ -25,10 +25,26 @@ To build native code follow the steps from ``Dockefile``. To run C++ unit tests 
 
 To run python unit tests type ``py.test``.
 
+If you have built MiXeR's native code locally, use
+```
+export GSA_MIXER_ROOT=$HOME/github/precimed/gsa-mixer                   # adjust accordingly
+export BGMG_SHARED_LIBRARY="$GSA_MIXER_ROOT/src/build/lib/libbgmg.so"
+export MIXER_PY="python $GSA_MIXER_ROOT/precimed/mixer.py"
+```
+and run ``MIXER_PY`` as if it was pointing to a docker or singularity container. 
+
+## Containers
+
+The containers are based on the following [Dockerfile](Dockerfile), built using Github actions ([this workflow](.github/workflows/docker_build_push.yml)). We also include [scripts/from_docker_image.sh](scripts/from_docker_image.sh) shell script to convert locally built Docker container into singularity, which is only relevant if you're building these containers yourself.
+
+## Releases
+
 To release a new version, bump ``precimed/version.py``.
 
 In case of changes to native C++ code, update ``VERSION`` in ``src/bgmg.h`` to match ``precimed/version.py``, otherwise let the ``src/bgmg.h`` lag behind.
 
 For the version change, see [CHANGELOG](CHANGELOG.md)
+
+## Misc
 
 For all other questions refer to user documentation - https://github.com/precimed/mixer .
