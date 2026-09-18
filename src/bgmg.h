@@ -21,7 +21,7 @@
 #include <stdint.h>
 #include "bgmg_export.h"
 
-#define VERSION "2.2.1"
+#define VERSION "2.2.2"
 
 extern "C" {
   // "System" functions - error diagnostics, logging debug info to a file, memory management, status.

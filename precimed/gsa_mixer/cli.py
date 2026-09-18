@@ -330,6 +330,17 @@ def find_annomat(annot_file, chr_labels, lib_file_suffix, libbgmg):
 
 def load_go_file(go_file, go_extend_bp, exclude_genes=[]):
     go = pd.read_csv(go_file, sep='\t')
+    # Validate before multiplying by CHR_OFFSET: object arrays repeat strings.
+    chr_numeric = pd.to_numeric(go['CHR'], errors='coerce')
+    invalid = chr_numeric.isna() | ~chr_numeric.between(1, 22) | (chr_numeric % 1 != 0)
+    if invalid.any():
+        labels = go.loc[invalid, 'CHR'].astype(str).unique()
+        raise ValueError(
+            f'{go_file}: CHR must contain integer autosomes 1–22; '
+            f'unsupported values: {", ".join(labels)}. '
+            'Filter the GO file to autosomes before running GSA-MiXeR.'
+        )
+    go['CHR'] = chr_numeric.astype(np.int64)
     if 'base' in go['GO'].values:
         raise ValueError(f'{go_file} file has "base" in its "GO" column; this is not allowed as "base" category is added automatically')
 
@@ -787,4 +798,3 @@ def execute_split_sumstats_parser(args):
         print(f'writing {fout}...')
         df[df['CHR'] == str(chr_label)].to_csv(fout, sep='\t', index=False)
     print('Done.')
-

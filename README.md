@@ -39,13 +39,16 @@ and run ``MIXER_PY`` as if it was pointing to a docker or singularity container.
 
 ## Containers
 
-The containers are based on the following [Dockerfile](Dockerfile), built using Github actions ([this workflow](.github/workflows/docker_build_push.yml)). We also include [scripts/from_docker_image.sh](scripts/from_docker_image.sh) shell script to convert locally built Docker container into singularity, which is only relevant if you're building these containers yourself.
+The containers use this [Dockerfile](Dockerfile). The [GitHub Actions workflow](.github/workflows/docker_build_push.yml) builds and publishes Docker and Apptainer/Singularity containers on pushes to `main` and tags matching `v*.*.*`.
+
+Use [docker/scripts/from_docker_image.sh](docker/scripts/from_docker_image.sh) to convert a locally built Docker image into a Singularity container.
 
 ## Releases
 
-To release a new version, bump ``precimed/version.py``.
-
-In case of changes to native C++ code, update ``VERSION`` in ``src/bgmg.h`` to match ``precimed/version.py``, otherwise let the ``src/bgmg.h`` lag behind.
+1. Bump `precimed/version.py` and `VERSION` in `src/bgmg.h` together, including for Python-only changes.
+2. Update `CHANGELOG.md` and run relevant checks.
+3. Merge to `main`, then create and push the matching version tag (e.g. `v2.2.2`) to publish versioned containers.
+4. Verify both container jobs succeed and smoke-test the published images.
 
 
 ### Build from source - Linux

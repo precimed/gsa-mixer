@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [2.2.2] - https://github.com/precimed/gsa-mixer
+
+### Fixed
+
+* Prevent out-of-memory errors from invalid GO-file chromosome labels. Labels must be integers 1–22; unsupported values now raise a clear error.
+
 ## [2.2.1] - https://github.com/precimed/gsa-mixer
 
 ### Added
