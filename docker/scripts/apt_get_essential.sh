@@ -1,45 +1,44 @@
-#!/bin/sh
+#!/usr/bin/env bash
 set -euo pipefail
 
-apt-get update && apt-get install -y --no-install-recommends apt-utils=2.8.3
-apt-get update && apt-get install -y --no-install-recommends ca-certificates=20240203 && \
+apt-get update && apt-get install -y --no-install-recommends apt-utils
+apt-get update && apt-get install -y --no-install-recommends ca-certificates && \
    update-ca-certificates
 
 # (!) Keep the list below sorted (!)
-# use  https://packages.ubuntu.com/ to search for package version
-# make sure to select 'Distribution: noble' for ubuntu:24.04
+# Use available packages from the Ubuntu release selected in Dockerfile.
+# Exact versions can disappear from the live Ubuntu repositories.
 apt-get update && apt-get install -y --no-install-recommends \
-   autoconf=2.71-3 \
-   automake=1:1.16.5-1.3ubuntu1 \
-   build-essential=12.10ubuntu1 \
-   bzip2=1.0.8-5.1build0.1 \
-   cmake=3.28.3-1build7 \
-   curl=8.5.0-2ubuntu10.6 \
-   dos2unix=7.5.1-1 \
-   gdb=15.0.50.20240403-0ubuntu1 \
-   gfortran=4:13.2.0-7ubuntu1 \
-   git=1:2.43.0-1ubuntu7.3 \
-   less=590-2ubuntu2.1 \
-   libatlas-base-dev=3.10.3-13ubuntu1 \
-   libcurl4-openssl-dev=8.5.0-2ubuntu10.6 \
-   libgomp1=14.2.0-4ubuntu2~24.04 \
-   libgsl-dev=2.7.1+dfsg-6ubuntu2 \
-   libnss3=2:3.98-1build1 \
-   libpcre2-dev=10.42-4ubuntu2.1 \
-   libxt-dev=1:1.2.1-1.2build1 \
-   pandoc=3.1.3+ds-2 \
-   parallel=20231122+ds-1 \
-   perl=5.38.2-3.2ubuntu0.2 \
-   pkg-config=1.8.1-2build1 \
-   python3=3.12.3-0ubuntu2 \
-   python3-pytest=7.4.4-1 \
-   tar=1.35+dfsg-3build1 \
-   tofrodos=1.7.13+ds-6 \
-   unzip=6.0-28ubuntu4.1 \
-   vim=2:9.1.0016-1ubuntu7.8 \
-   wget=1.21.4-1ubuntu4.1 \
-   zlib1g-dev=1:1.3.dfsg-3.1ubuntu2.1
-   # pandoc-citeproc=0.15.0.1-1build4 \
+   autoconf \
+   automake \
+   build-essential \
+   bzip2 \
+   cmake \
+   curl \
+   dos2unix \
+   gdb \
+   gfortran \
+   git \
+   less \
+   libatlas-base-dev \
+   libcurl4-openssl-dev \
+   libgomp1 \
+   libgsl-dev \
+   libnss3 \
+   libpcre2-dev \
+   libxt-dev \
+   pandoc \
+   parallel \
+   perl \
+   pkg-config \
+   python3 \
+   python3-pytest \
+   tar \
+   tofrodos \
+   unzip \
+   vim \
+   wget \
+   zlib1g-dev
 
 apt-get clean && rm -rf /var/lib/apt/lists/*
    
